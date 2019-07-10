@@ -11105,7 +11105,7 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
                 "distillate": {"2009": 14.81, "2010": 14.87},
                 "other fuel": {"2009": 14.81, "2010": 14.87}}}
         cls.handyvars.ccosts = {"2009": 33, "2010": 33}
-        cls.opts = UserOptions(site=None, capt=None, regions=None, 
+        cls.opts = UserOptions(site=None, capt=None, regions=None,
                                warnings=None)
         cls.tsv_data = {
             "load": {

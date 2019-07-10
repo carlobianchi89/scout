@@ -53,7 +53,7 @@ class UsefulInputFiles(object):
             intended regional breakout.
     """
 
-    def __init__(self, capt_energy, regions): 
+    def __init__(self, capt_energy, regions):
         if regions == 'AIA':
             # UNCOMMENT WITH ISSUE 188
             # self.msegs_in = ("supporting_data", "stock_energy_tech_data",
@@ -300,7 +300,7 @@ class UsefulVars(object):
                     for key in self.aeo_years},
                 "refrigeration": {
                     key: [0.262, 0.248, 0.213, 0.170, 0.097, 0.006, 0.004]
-                    for key in self.aeo_years}}} 
+                    for key in self.aeo_years}}}
         # Set valid region names and regional output categories
         if regions == "AIA":
             valid_regions = [
