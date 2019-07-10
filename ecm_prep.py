@@ -49,19 +49,28 @@ class UsefulInputFiles(object):
         cpi_data (CSV) = Historical Consumer Price Index data.
         ss_data (JSON) = Site-source conversion data.
         tsv_data (JSON) = Time sensitive energy, price, and emissions data.
+        regions (str) = Specifies which baseline data file to choose, based on
+            intended regional breakout.
     """
 
-    def __init__(self, capt_energy):
-        self.msegs_in = ("supporting_data", "stock_energy_tech_data",
-                         "mseg_res_com_cz.json")
-        # UNCOMMENT WITH ISSUE 188
-        # self.msegs_in = ("supporting_data", "stock_energy_tech_data",
-        #                  "mseg_res_com_cz_2017.json")
-        self.msegs_cpl_in = ("supporting_data", "stock_energy_tech_data",
-                             "cpl_res_com_cz.json")
-        # UNCOMMENT WITH ISSUE 188
-        # self.msegs_cpl_in = ("supporting_data", "stock_energy_tech_data",
-        #                      "cpl_res_com_cz_2017.json")
+    def __init__(self, capt_energy, regions): 
+        if regions == 'AIA':
+            # UNCOMMENT WITH ISSUE 188
+            # self.msegs_in = ("supporting_data", "stock_energy_tech_data",
+            #                  "mseg_res_com_cz_2017.json")
+            self.msegs_in = ("supporting_data", "stock_energy_tech_data",
+                             "mseg_res_com_cz.json")
+            # UNCOMMENT WITH ISSUE 188
+            # self.msegs_cpl_in = ("supporting_data", "stock_energy_tech_data",
+            #                      "cpl_res_com_cz_2017.json")
+            self.msegs_cpl_in = ("supporting_data", "stock_energy_tech_data",
+                                 "cpl_res_com_cz.json")
+        elif regions == 'EMM':
+            self.msegs_in = ("supporting_data", "stock_energy_tech_data",
+                             "mseg_res_com_emm.json")
+            self.msegs_cpl_in = ("supporting_data", "stock_energy_tech_data",
+                                 "cpl_res_com_emm.json")
+
         self.metadata = "metadata.json"
         # UNCOMMENT WITH ISSUE 188
         # self.metadata = "metadata_2017.json"
@@ -155,9 +164,10 @@ class UsefulVars(object):
             cost parameters to use when choice data are missing.
         tsv_order (list): Order in which to implement time-sensitive
             efficiency impacts.
+        regions (str): Regions to use in geographically breaking out the data.
     """
 
-    def __init__(self, base_dir, handyfiles):
+    def __init__(self, base_dir, handyfiles, regions):
         self.adopt_schemes = ['Technical potential', 'Max adoption potential']
         self.discount_rate = 0.07
         self.retro_rate = 0.01
@@ -290,10 +300,23 @@ class UsefulVars(object):
                     for key in self.aeo_years},
                 "refrigeration": {
                     key: [0.262, 0.248, 0.213, 0.170, 0.097, 0.006, 0.004]
-                    for key in self.aeo_years}}}
+                    for key in self.aeo_years}}} 
+        # Set valid region names and regional output categories
+        if regions == "AIA":
+            valid_regions = [
+             "AIA_CZ1", "AIA_CZ2", "AIA_CZ3", "AIA_CZ4", "AIA_CZ5"]
+            regions_out = [
+                ('AIA CZ1', 'AIA_CZ1'), ('AIA CZ2', 'AIA_CZ2'),
+                ('AIA CZ3', 'AIA_CZ3'), ('AIA CZ4', 'AIA_CZ4'),
+                ('AIA CZ5', 'AIA_CZ5')]
+        elif regions == "EMM":
+            valid_regions = [
+             'ERCT', 'FRCC', 'MROE', 'MROW', 'NEWE', 'NYCW', 'NYLI', 'NYUP',
+             'RFCE', 'RFCM', 'RFCW', 'SRDA', 'SRGW', 'SRSE', 'SRCE', 'SRVC',
+             'SPNO', 'SPSO', 'AZNM', 'CAMX', 'NWPP', 'RMPA']
+            regions_out = [(x, x) for x in valid_regions]
         self.in_all_map = {
-            "climate_zone": [
-                "AIA_CZ1", "AIA_CZ2", "AIA_CZ3", "AIA_CZ4", "AIA_CZ5"],
+            "climate_zone": valid_regions,
             "bldg_type": {
                 "residential": [
                     "single family home", "multi family home", "mobile home"],
@@ -501,10 +524,7 @@ class UsefulVars(object):
         mktnames_all = ['all ' + x if 'all' not in x else x for
                         x in mktnames_all_init]
         self.valid_mktnames = mktnames_non_all + mktnames_all
-        self.out_break_czones = OrderedDict([
-            ('AIA CZ1', 'AIA_CZ1'), ('AIA CZ2', 'AIA_CZ2'),
-            ('AIA CZ3', 'AIA_CZ3'), ('AIA CZ4', 'AIA_CZ4'),
-            ('AIA CZ5', 'AIA_CZ5')])
+        self.out_break_czones = OrderedDict(regions_out)
         self.out_break_bldgtypes = OrderedDict([
             ('Residential (New)', [
                 'new', 'single family home', 'multi family home',
@@ -6045,12 +6065,32 @@ def main(base_dir):
     Args:
         base_dir (string): Root Scout directory.
     """
+    # If a user has specified the use of an alternate regional breakout
+    # than the AIA climate zones, prompt the user to directly select that
+    # alternate regional breakout. Currently the only alternate is NEMS EMM.
+    if opts.alt_regions is True:
+        input_var = 0
+        # Determine the regional breakdown to use (NEMS EMM (1) vs. AIA (2))
+        while input_var not in ['1', '2']:
+            input_var = input(
+                "Enter 1 to use an EIA NEMS Electricity Market Module (EMM) "
+                "geographical breakdown or 2 to use an AIA climate zone"
+                " geographical breakdown: ")
+            if input_var not in ['1', '2']:
+                print('Please try again. Enter either 1 or 2. '
+                      'Use ctrl-c to exit.')
+        if input_var == '1':
+            regions = "EMM"
+        else:
+            regions = "AIA"
+    else:
+        regions = "AIA"
 
     # Custom format all warning messages (ignore everything but
     # message itself) *** Note: sometimes yields error; investigate ***
     # warnings.formatwarning = custom_formatwarning
     # Instantiate useful input files object
-    handyfiles = UsefulInputFiles(opts.captured_energy)
+    handyfiles = UsefulInputFiles(opts.captured_energy, regions)
 
     # UNCOMMENT WITH ISSUE 188
     # # Ensure that all AEO-based JSON data are drawn from the same AEO version
@@ -6060,7 +6100,7 @@ def main(base_dir):
     #     raise ValueError("Inconsistent AEO version used across input files")
 
     # Instantiate useful variables object
-    handyvars = UsefulVars(base_dir, handyfiles)
+    handyvars = UsefulVars(base_dir, handyfiles, regions)
 
     # Import file to write prepared measure attributes data to for
     # subsequent use in the analysis engine (if file does not exist,
@@ -6319,6 +6359,9 @@ if __name__ == "__main__":
     # captured energy (rather than fossil fuel equivalent) method
     parser.add_argument("--captured_energy", action="store_true",
                         help="Flag captured energy site-source conversions")
+    # Optional flag for non-AIA regional breakdown
+    parser.add_argument("--alt_regions", action="store_true",
+                        help="Flag alternate regional breakdown")
     # Optional flag to print all warning messages to stdout
     parser.add_argument("--verbose", action="store_true",
                         help="Print all warnings to stdout")

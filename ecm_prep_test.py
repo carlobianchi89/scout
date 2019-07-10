@@ -220,7 +220,8 @@ class EPlusUpdateTest(unittest.TestCase, CommonMethods):
         # Useful global variables for the sample measure object
         handyvars = ecm_prep.UsefulVars(base_dir,
                                         ecm_prep.UsefulInputFiles(
-                                            capt_energy=None))
+                                            capt_energy=None, regions="AIA"),
+                                        regions="AIA")
         cls.meas = ecm_prep.Measure(
             handyvars, site_energy=None, capt_energy=None, **sample_measure_in)
         # Finalize the measure's 'technology_type' attribute (handled by the
@@ -703,11 +704,13 @@ class EPlusUpdateTest(unittest.TestCase, CommonMethods):
 
 class UserOptions(object):
     """Generate sample user-specified execution options."""
-    def __init__(self, site, capt, warnings):
+    def __init__(self, site, capt, regions, warnings):
         # Options include site energy outputs, captured energy site-source
-        # calculation method, and verbose mode that prints all warnings
+        # calculation method, alternate regions, and verbose mode that prints
+        # all warnings
         self.site_energy = site
         self.captured_energy = capt
+        self.alt_regions = regions
         self.verbose = warnings
 
 
@@ -777,7 +780,8 @@ class MarketUpdatesTest(unittest.TestCase, CommonMethods):
         base_dir = os.getcwd()
         handyvars = ecm_prep.UsefulVars(base_dir,
                                         ecm_prep.UsefulInputFiles(
-                                            capt_energy=None))
+                                            capt_energy=None, regions="AIA"),
+                                        regions="AIA")
         # Hard code aeo_years to fit test years
         handyvars.aeo_years = ["2009", "2010"]
         handyvars.retro_rate = 0.02
@@ -812,7 +816,8 @@ class MarketUpdatesTest(unittest.TestCase, CommonMethods):
                 "distillate": {"2009": 14.81, "2010": 14.87},
                 "other fuel": {"2009": 14.81, "2010": 14.87}}}
         handyvars.ccosts = {"2009": 33, "2010": 33}
-        cls.opts = UserOptions(site=None, capt=None, warnings=None)
+        cls.opts = UserOptions(
+            site=None, capt=None, regions=None, warnings=None)
         cls.convert_data = {}
         cls.tsv_data = {}
         cls.sample_mseg_in = {
@@ -7493,7 +7498,7 @@ class MarketUpdatesTest(unittest.TestCase, CommonMethods):
             AssertionError: If function yields unexpected results.
         """
         # Run function on all measure objects and check output
-        opts = UserOptions(site=True, capt=True, warnings=None)
+        opts = UserOptions(site=True, capt=True, regions=None, warnings=None)
         for idx, measure in enumerate(self.ok_tpmeas_sitechk_in):
             measure.fill_mkts(self.sample_mseg_in, self.sample_cpl_in,
                               self.convert_data, self.tsv_data, opts)
@@ -7598,7 +7603,8 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
         base_dir = os.getcwd()
         handyvars = ecm_prep.UsefulVars(base_dir,
                                         ecm_prep.UsefulInputFiles(
-                                            capt_energy=None))
+                                            capt_energy=None, regions="AIA"),
+                                        regions="AIA")
         # Hard code aeo_years to fit test years
         handyvars.aeo_years = ["2009", "2010"]
         cls.sample_mskeys = (
@@ -8600,7 +8606,8 @@ class PartitionMicrosegmentTest(unittest.TestCase, CommonMethods):
         base_dir = os.getcwd()
         cls.handyvars = ecm_prep.UsefulVars(base_dir,
                                             ecm_prep.UsefulInputFiles(
-                                                capt_energy=None))
+                                                capt_energy=None,
+                                                regions="AIA"), regions="AIA")
         cls.handyvars.ccosts = numpy.array(
             (b'Test', 1, 4, 1), dtype=[
                 ('Category', 'S11'), ('2009', '<f8'),
@@ -9153,7 +9160,8 @@ class CheckMarketsTest(unittest.TestCase, CommonMethods):
         base_dir = os.getcwd()
         handyvars = ecm_prep.UsefulVars(base_dir,
                                         ecm_prep.UsefulInputFiles(
-                                            capt_energy=None))
+                                            capt_energy=None,
+                                            regions="AIA"), regions="AIA")
         sample_measures_fail = [{
             "name": "sample measure 5",
             "market_entry_year": None,
@@ -9243,7 +9251,8 @@ class FillParametersTest(unittest.TestCase, CommonMethods):
         base_dir = os.getcwd()
         handyvars = ecm_prep.UsefulVars(base_dir,
                                         ecm_prep.UsefulInputFiles(
-                                            capt_energy=None))
+                                            capt_energy=None, regions="AIA"),
+                                        regions="AIA")
         sample_measures = [{
             "name": "sample measure 1",
             "market_entry_year": None,
@@ -9791,7 +9800,8 @@ class CreateKeyChainTest(unittest.TestCase, CommonMethods):
         base_dir = os.getcwd()
         handyvars = ecm_prep.UsefulVars(base_dir,
                                         ecm_prep.UsefulInputFiles(
-                                            capt_energy=None))
+                                            capt_energy=None, regions="AIA"),
+                                        regions="AIA")
         sample_measure = {
             "name": "sample measure 2",
             "active": 1,
@@ -10010,7 +10020,8 @@ class AddKeyValsTest(unittest.TestCase, CommonMethods):
         base_dir = os.getcwd()
         handyvars = ecm_prep.UsefulVars(base_dir,
                                         ecm_prep.UsefulInputFiles(
-                                            capt_energy=None))
+                                            capt_energy=None, regions="AIA"),
+                                        regions="AIA")
         sample_measure_in = {
             "name": "sample measure 1",
             "active": 1,
@@ -10128,7 +10139,8 @@ class DivKeyValsTest(unittest.TestCase, CommonMethods):
         base_dir = os.getcwd()
         handyvars = ecm_prep.UsefulVars(base_dir,
                                         ecm_prep.UsefulInputFiles(
-                                            capt_energy=None))
+                                            capt_energy=None, regions="AIA"),
+                                        regions="AIA")
         sample_measure_in = {
             "name": "sample measure 1",
             "active": 1,
@@ -10218,7 +10230,8 @@ class DivKeyValsFloatTest(unittest.TestCase, CommonMethods):
         base_dir = os.getcwd()
         handyvars = ecm_prep.UsefulVars(base_dir,
                                         ecm_prep.UsefulInputFiles(
-                                            capt_energy=None))
+                                            capt_energy=None, regions="AIA"),
+                                        regions="AIA")
         sample_measure_in = {
             "name": "sample measure 1",
             "active": 1,
@@ -10347,7 +10360,8 @@ class AppendKeyValsTest(unittest.TestCase):
         base_dir = os.getcwd()
         cls.handyvars = ecm_prep.UsefulVars(base_dir,
                                             ecm_prep.UsefulInputFiles(
-                                                capt_energy=None))
+                                                capt_energy=None,
+                                                regions="AIA"), regions="AIA")
         cls.ok_mktnames_out = [
             "AIA_CZ1", "AIA_CZ2", "AIA_CZ3", "AIA_CZ4", "AIA_CZ5",
             "single family home",
@@ -10484,7 +10498,8 @@ class CostConversionTest(unittest.TestCase, CommonMethods):
         base_dir = os.getcwd()
         handyvars = ecm_prep.UsefulVars(base_dir,
                                         ecm_prep.UsefulInputFiles(
-                                            capt_energy=None))
+                                            capt_energy=None, regions="AIA"),
+                                        regions="AIA")
         # Set sample consumer price index data to ensure the test is not
         # dependent on any external price data files
         handyvars.consumer_price_ind = numpy.array([
@@ -11049,7 +11064,8 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
         cls.base_dir = os.getcwd()
         cls.handyvars = ecm_prep.UsefulVars(cls.base_dir,
                                             ecm_prep.UsefulInputFiles(
-                                                capt_energy=None))
+                                                capt_energy=None,
+                                                regions="AIA"), regions="AIA")
         # Hard code aeo_years to fit test years
         cls.handyvars.aeo_years = ["2009", "2010"]
         cls.cbecs_sf_byvint = {
@@ -11089,7 +11105,8 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
                 "distillate": {"2009": 14.81, "2010": 14.87},
                 "other fuel": {"2009": 14.81, "2010": 14.87}}}
         cls.handyvars.ccosts = {"2009": 33, "2010": 33}
-        cls.opts = UserOptions(site=None, capt=None, warnings=None)
+        cls.opts = UserOptions(site=None, capt=None, regions=None, 
+                               warnings=None)
         cls.tsv_data = {
             "load": {
               "AIA_CZ1": {
@@ -14151,7 +14168,8 @@ class MergeMeasuresandApplyBenefitsTest(unittest.TestCase, CommonMethods):
         # Useful global variables for the sample package measure objects
         handyvars = ecm_prep.UsefulVars(base_dir,
                                         ecm_prep.UsefulInputFiles(
-                                            capt_energy=None))
+                                            capt_energy=None, regions="AIA"),
+                                        regions="AIA")
         # Hard code aeo_years to fit test years
         handyvars.aeo_years = ["2009", "2010"]
         # Define a series of sample measures to package
@@ -18854,7 +18872,8 @@ class CleanUpTest(unittest.TestCase, CommonMethods):
             "cost reduction": None}
         cls.handyvars = ecm_prep.UsefulVars(base_dir,
                                             ecm_prep.UsefulInputFiles(
-                                                capt_energy=None))
+                                                capt_energy=None,
+                                                regions="AIA"), regions="AIA")
         sample_measindiv_dicts = [{
             "name": "cleanup 1",
             "market_entry_year": None,
