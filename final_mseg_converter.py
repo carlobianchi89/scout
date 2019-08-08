@@ -107,7 +107,7 @@ class UsefulVars(object):
             self.com_climate_convert = \
                 'Com_Cdiv_Czone_ConvertTable_Final.txt'
             # Set output JSON
-            self.json_out = 'mseg_res_com_cdiv_TEST.json'
+            self.json_out = 'mseg_res_com_cz.json'
         elif self.geo_break == '2':
             self.res_climate_convert = {
                 "electric": 'Res_Cdiv_EMM_ConvertTable_Final.txt',
@@ -116,7 +116,7 @@ class UsefulVars(object):
                 "electric": 'Com_Cdiv_EMM_ConvertTable_Final.txt',
                 "non-electric": 'NElec_Cdiv_EMM_Convert_Final.txt'}
             # Set output JSON
-            self.json_out = 'mseg_res_com_emm_TEST.json'
+            self.json_out = 'mseg_res_com_emm.json'
 
     def configure_for_cost_performance_lifetime_data(self):
         """Reconfigure cost, performance, and life data to custom region."""
@@ -130,7 +130,7 @@ class UsefulVars(object):
             self.com_climate_convert = \
                 'Com_Cdiv_Czone_ConvertTable_Rev_Final.txt'
             # Set output JSON
-            self.json_out = 'cpl_res_com_cdiv_TEST.json'
+            self.json_out = 'cpl_res_com_cz.json'
         elif self.geo_break == '2':
             self.res_climate_convert = {
                 "electric": 'Res_Cdiv_EMM_ConvertTable_Rev_Final.txt',
@@ -144,7 +144,7 @@ class UsefulVars(object):
             # regions is needed
             self.envelope_climate_convert = 'AIA_EMM_Convert_Rev_Final.txt'
             # Set output JSON
-            self.json_out = 'cpl_res_com_emm_TEST.json'
+            self.json_out = 'cpl_res_com_emm.json'
 
 
 def merge_sum(base_dict, add_dict, cd, cz, cd_dict, cd_list,

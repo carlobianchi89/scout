@@ -74,6 +74,7 @@ class UsefulVars(object):
         out_break_enduses (OrderedDict): Maps measure end use names to
             the end use categories used in summarizing measure outputs.
         regions (str): Regions to use in geographically breaking out the data.
+        region_check (dict): Acceptable input names for each region set.
         region_inout_namepairs (dict): Input/output region name pairs.
     """
 
@@ -120,6 +121,12 @@ class UsefulVars(object):
                 "refrigeration": {
                     key: [0.262, 0.248, 0.213, 0.170, 0.097, 0.006, 0.004]
                     for key in self.aeo_years}}}
+        self.region_check = {
+            "AIA": ['AIA_CZ1', 'AIA_CZ2', 'AIA_CZ3', 'AIA_CZ4', 'AIA_CZ5'],
+            "EMM": [
+                'ERCT', 'FRCC', 'MROE', 'MROW', 'NEWE', 'NYCW', 'NYLI', 'NYUP',
+                'RFCE', 'RFCM', 'RFCW', 'SRDA', 'SRGW', 'SRSE', 'SRCE', 'SRVC',
+                'SPNO', 'SPSO', 'AZNM', 'CAMX', 'NWPP', 'RMPA']}
         self.region_inout_namepairs = {
             "AIA": [
                 ('AIA CZ1', 'AIA_CZ1'), ('AIA CZ2', 'AIA_CZ2'),
@@ -3120,11 +3127,10 @@ def main(base_dir):
 
     # Check to ensure that all active/valid measure definitions used consistent
     # regional breakouts when being prepared in ecm_prep.py
-    if not all([all([
-        x in [y[0] for y in handyvars.region_inout_namepairs["EMM"]] for
-        x in m.climate_zone]) for m in measures_objlist]) and not all([all([
-            x in [y[0] for y in handyvars.region_inout_namepairs["AIA"]] for
-            x in m.climate_zone]) for m in measures_objlist]):
+    if (not all([all([x in handyvars.region_check["EMM"] for
+                      x in m.climate_zone]) for m in measures_objlist])) and \
+       (not all([all([x in handyvars.region_check["AIA"] for
+                      x in m.climate_zone]) for m in measures_objlist])):
         raise ValueError(
             "Inconsistent regional breakout is used across active ECM set. "
             "To address this issue, delete the file "
@@ -3134,8 +3140,8 @@ def main(base_dir):
 
     # Set a flag for geographical breakout (currently possible to breakout
     # by AIA climate zone or by NEMS EMM region).
-    if all([x in [y[0] for y in handyvars.region_inout_namepairs["EMM"]]
-            for x in measures_objlist[0].climate_zone]):
+    if all([x in handyvars.region_check["EMM"] for
+            x in measures_objlist[0].climate_zone]):
         regions = "EMM"
         # Re-instantiate useful variables object when regional breakdown other
         # than the default AIA climate zone breakdown is chosen
