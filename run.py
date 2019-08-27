@@ -3078,8 +3078,9 @@ def main(base_dir):
             m["name"] in active_meas_all and m["remove"] is False]
 
     # Check to ensure that all active/valid measure definitions used consistent
-    # energy units (site vs. source) and site-source conversion factors when
-    # being prepared in ecm_prep.py
+    # energy units (site vs. source), site-source conversion factors, regional
+    # breakouts, and time sensitive valuation metric settings when being
+    # prepared in ecm_prep.py
     try:
         if not (all([m.energy_outputs["site_energy"] is True for
                      m in measures_objlist]) or
@@ -3096,6 +3097,28 @@ def main(base_dir):
                      m in measures_objlist])):
             raise ValueError(
                 "Inconsistent site-source conversion methods used "
+                "across active ECM set. To address this issue, "
+                "delete the file ./supporting_data/ecm_prep.json "
+                "and rerun ecm_prep.py.")
+        if not (all([(m.energy_outputs["alt_regions"] is not False and
+                      m.energy_outputs["alt_regions"] ==
+                      measures_objlist[0].energy_outputs["alt_regions"]) for
+                     m in measures_objlist]) or
+                all([m.energy_outputs["alt_regions"] is False for
+                     m in measures_objlist])):
+            raise ValueError(
+                "Inconsistent regional breakouts used "
+                "across active ECM set. To address this issue, "
+                "delete the file ./supporting_data/ecm_prep.json "
+                "and rerun ecm_prep.py.")
+        if not (all([(m.energy_outputs["tsv_metrics"] is not False and
+                      m.energy_outputs["tsv_metrics"] ==
+                      measures_objlist[0].energy_outputs["tsv_metrics"]) for
+                     m in measures_objlist]) or
+                all([m.energy_outputs["tsv_metrics"] is False for
+                     m in measures_objlist])):
+            raise ValueError(
+                "Inconsistent time sensitive valuation metrics used "
                 "across active ECM set. To address this issue, "
                 "delete the file ./supporting_data/ecm_prep.json "
                 "and rerun ecm_prep.py.")
@@ -3125,23 +3148,9 @@ def main(base_dir):
         # Otherwise, set energy output to source energy, fossil equivalent S-S
         energy_out = "fossil_equivalent"
 
-    # Check to ensure that all active/valid measure definitions used consistent
-    # regional breakouts when being prepared in ecm_prep.py
-    if (not all([all([x in handyvars.region_check["EMM"] for
-                      x in m.climate_zone]) for m in measures_objlist])) and \
-       (not all([all([x in handyvars.region_check["AIA"] for
-                      x in m.climate_zone]) for m in measures_objlist])):
-        raise ValueError(
-            "Inconsistent regional breakout is used across active ECM set. "
-            "To address this issue, delete the file "
-            "./supporting_data/ecm_prep.json and rerun ecm_prep.py, ensuring "
-            "that all ECM definitions being prepared in ecm_prep.py use "
-            "a consistent regional breakout.")
-
     # Set a flag for geographical breakout (currently possible to breakout
     # by AIA climate zone or by NEMS EMM region).
-    if all([x in handyvars.region_check["EMM"] for
-            x in measures_objlist[0].climate_zone]):
+    if measures_objlist[0].energy_outputs["alt_regions"] == "EMM":
         regions = "EMM"
         # Re-instantiate useful variables object when regional breakdown other
         # than the default AIA climate zone breakdown is chosen

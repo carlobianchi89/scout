@@ -51,6 +51,7 @@ class UsefulInputFiles(object):
         tsv_load_data (JSON): Time sensitive energy demand data.
         tsv_cost_data (JSON): Time sensitive electricity price data.
         tsv_carbon_data (JSON): Time sensitive marginal CO2 emissions data.
+        tsv_shape_data (CSV): Custom time sensitive hourly savings shape data.
         regions (str): Specifies which baseline data file to choose, based on
             intended regional breakout.
         ash_emm_map (TXT): Factors for mapping ASHRAE climates to EMM regions.
@@ -103,6 +104,8 @@ class UsefulInputFiles(object):
             "supporting_data", "convert_data", "tsv_cost.json")
         self.tsv_carbon_data = (
             "supporting_data", "convert_data", "tsv_carbon.json")
+        self.tsv_shape_data = (
+            "ecm_definitions", "energyplus_data", "savings_shapes")
 
 
 class UsefulVars(object):
@@ -174,6 +177,7 @@ class UsefulVars(object):
             cost parameters to use when choice data are missing.
         regions (str): Regions to use in geographically breaking out the data.
         months (str): Month sequence for accessing time-sensitive data.
+        tsv_metrics_data (str): Settings for calculating tsv metrics outputs.
     """
 
     def __init__(self, base_dir, handyfiles, regions):
@@ -664,6 +668,27 @@ class UsefulVars(object):
         # appliances/MELs areas; default is thus the EIA choice parameters
         # for refrigerator technologies
         self.deflt_choice = [-0.01, -0.12]
+        # NOTE: for now a uniform set of peak/take periods is assumed in
+        # a given season across EMM regions
+        self.tsv_metrics_data = {
+            "season days": {
+                "summer": list(range(151, 273)),
+                "winter": (list(
+                    range(1, 59)) + list(range(334, 365))),
+                "intermediate": (list(
+                    range(59, 151)) + list(range(273, 334)))
+            },
+            "day hours": {
+                "peak period": {
+                    "summer": list(range(17, 21)),
+                    "winter": list(range(17, 21)),
+                    "intermediate": list(range(17, 21))},
+                "take period": {
+                    "summer": list(range(12, 16)),
+                    "winter": list(range(12, 16)),
+                    "intermediate": list(range(12, 16))}
+            }
+        }
 
     def append_keyvals(self, dict1, keyval_list):
         """Append all terminal key values in a dict to a list.
@@ -986,7 +1011,9 @@ class Measure(object):
             savings values summed by climate zone, building class, and end use.
     """
 
-    def __init__(self, handyvars, site_energy, capt_energy, **kwargs):
+    def __init__(
+            self, base_dir, handyvars, handyfiles, site_energy, capt_energy,
+            regions, tsv_metrics, **kwargs):
         # Read Measure object attributes from measures input JSON.
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -995,12 +1022,25 @@ class Measure(object):
             raise ValueError(
                 "ECM '" + self.name + "' name must be <= 45 characters")
         self.remove = False
+        # Flag custom energy output settings (user-defined)
         self.energy_outputs = {
-            "site_energy": False, "captured_energy_ss": False}
+            "site_energy": False, "captured_energy_ss": False,
+            "alt_regions": False, "tsv_metrics": False}
         if site_energy is True:
             self.energy_outputs["site_energy"] = True
         if capt_energy is True:
             self.energy_outputs["captured_energy_ss"] = True
+        if regions != "AIA":
+            self.energy_outputs["alt_regions"] = regions
+        if tsv_metrics is not None:
+            if self.fuel_type not in ["electricity", ["electricity"]]:
+                raise ValueError(
+                    "Non-electric fuel found for measure '" + self.name +
+                    " alongside '--tsv_metrics' option. Such metrics cannot "
+                    "be calculated for non-electric baseline segments of "
+                    "energy use. To address this issue, restrict the "
+                    "measure's fuel type to electricity.")
+            self.energy_outputs["tsv_metrics"] = tsv_metrics
         self.handyvars = handyvars
         # Set the rate of baseline retrofitting for ECM stock-and-flow calcs
         try:
@@ -1053,12 +1093,74 @@ class Measure(object):
             self.market_exit_year = int(self.handyvars.aeo_years[-1]) + 1
         self.yrs_on_mkt = [str(i) for i in range(
             self.market_entry_year, self.market_exit_year)]
-        # If no "time_sensitive_valuation" parameter was specified for the
-        # ECM, set this parameter to None
+        # Test for whether a user has set time sensitive valuation features
+        # for the given measure. If no "tsv_features" parameter was
+        # specified for the ECM, set this parameter to None
         try:
-            self.time_sensitive_valuation
+            # Try to access the ECM's TSV feature dict keys
+            self.tsv_features.keys()
+            # If TSV features are present, ensure that the measure only
+            # applies to electricity
+            if self.fuel_type not in ["electricity", ["electricity"]]:
+                raise ValueError(
+                    "Non-electric fuel found for measure '" + self.name +
+                    " alongside time sensitive valuation features. Such "
+                    "features cannot be implemented for non-electric "
+                    "baseline segments of energy use. To address this issue, "
+                    "restrict the measure's fuel type to electricity.")
+            # If the ECM is assigned a custom savings shape, load the
+            # associated custom savings shape data from a CSV file
+            try:
+                # Determine the CSV file name
+                csv_shape_file_name = \
+                    self.tsv_features["shape"]["custom_annual_savings"]
+                # Assuming the standard location for ECM savings shape CSV
+                # files, import custom savings shape data as numpy array and
+                # store it in the ECM's custom savings shape attribute for
+                # subsequent use in the 'apply_tsv' function
+                try:
+                    self.tsv_features["shape"]["custom_annual_savings"] = \
+                        numpy.genfromtxt(
+                            path.join(base_dir, *handyfiles.tsv_shape_data,
+                                      csv_shape_file_name),
+                            names=True, delimiter=',', dtype=[
+                                ('Hour_of_Year', '<i4'),
+                                ('Climate_Zone', '<U25'),
+                                ('Building_Type', '<U25'),
+                                ('End_Use', '<U25'),
+                                ('Baseline_Load', '<f8'),
+                                ('Measure_Load', '<f8'),
+                                ('Relative_Savings', '<f8')])
+                except ValueError as e:
+                    raise ValueError(
+                        "Error reading in custom savings shape data: " +
+                        str(e)) from None
+
+            except KeyError:
+                pass
         except AttributeError:
-            self.time_sensitive_valuation = None
+            self.tsv_features = None
+        # Check to ensure that the proper EMM regions are defined in the
+        # measure 'climate_zone' attribute if time sensitive ECM features
+        # and/or output metrics are desired
+        valid_tsv_regions = [
+            'ERCT', 'FRCC', 'MROE', 'MROW', 'NEWE', 'NYCW', 'NYLI', 'NYUP',
+            'RFCE', 'RFCM', 'RFCW', 'SRDA', 'SRGW', 'SRSE', 'SRCE', 'SRVC',
+            'SPNO', 'SPSO', 'AZNM', 'CAMX', 'NWPP', 'RMPA']
+        if (any([x is not None for x in [
+            self.tsv_features, tsv_metrics]]) and ((
+                type(self.climate_zone) == list and any([
+                x not in y for x, y in zip(
+                    self.climate_zone, valid_tsv_regions)])) or (
+                self.climate_zone != "all" and all([
+                self.climate_zone not in y for y in valid_tsv_regions])))):
+            raise ValueError(
+                "Invalid 'climate_zone' attribute value(s) for ECM '" +
+                self.name + "' given desired time sensitive valuation "
+                "operations/outputs. Currently, only EMM regions are "
+                "supported for time sensitive valuation. This issue can "
+                "be addressed by ensuring all ECM 'climate_zone' values "
+                "reflect one of the EMM regions.")
         self.markets, self.out_break_norm = ({} for n in range(2))
         for adopt_scheme in handyvars.adopt_schemes:
             self.markets[adopt_scheme] = OrderedDict([(
@@ -1294,14 +1396,16 @@ class Measure(object):
         # and/or technology input attributes marked 'all' by users. Determine
         # secondary microsegment key chains and add to the primary
         # microsegment key chain list. In a commercial lighting measure case
-        # where no secondary microsegment is specified, use the "lighting
-        # gain" thermal load component microsegments to represent secondary
-        # end use effects of the lighting measure
+        # where no heating/cooling effects from lighting are directly
+        # specified, use the "lighting gain" thermal load component
+        # microsegments to represent secondary effects of the lighting measure
         if self.end_use["secondary"] is not None:
             ms_iterable_second, ms_lists_second = self.create_keychain(
                 "secondary")
             ms_iterable.extend(ms_iterable_second)
-        elif "lighting" in self.end_use["primary"] and \
+        elif "lighting" in self.end_use["primary"] and any([
+                x not in self.end_use["primary"] for x in [
+                "heating", "cooling"]]) and \
             any([x not in ["single family home", "multi family home",
                            "mobile home"] for x in self.bldg_type]):
             # Set secondary lighting mseg performance flag to True
@@ -2208,6 +2312,21 @@ class Measure(object):
                     if mskeys[4] == "lighting" and mskeys[0] == "primary" and \
                             light_scnd_autoperf is True:
                         light_scnd_autoperf = rel_perf
+
+                    # Check whether the user has optionally locked measure
+                    # relative performance across the model time horizon to
+                    # that of the measure's market entry year (for example,
+                    # a user may wish to assume that the 'Best Available'
+                    # measure on the market maintains a consistent degree of
+                    # improvement over the comparable baseline technology
+                    # across its lifetime') In this case, set the measure's
+                    # relative performance value for all years to that
+                    # calculated for its market entry year
+                    if opts.rp_persist is True:
+                        rel_perf = {
+                            yr: rel_perf[str(self.market_entry_year)] for
+                            yr in self.handyvars.aeo_years
+                        }
                 else:
                     raise KeyError(
                         "Invalid performance or cost units for ECM '" +
@@ -2532,18 +2651,23 @@ class Measure(object):
                             for key, val in add_energy.items()
                             if key in self.handyvars.aeo_years}
 
-                # Check for a time-sensitive efficiency valuation flag; if this
+                # Check for time-sensitive efficiency valuation (e.g., a
+                # measure has time sensitive features and/or the user has
+                # optionally specified time sensitive output metrics). If this
                 # type of valuation is necessary, develop the factors needed to
-                # reweight energy/cost/carbon data to reflect time-varying
+                # reweight energy/cost/carbon data to reflect hourly changes in
                 # energy load, energy price, and marginal carbon emissions
-                if self.time_sensitive_valuation is not None and (
-                    mskeys[0] == "secondary" or (mskeys[0] == "primary" and
-                                                 mskeys[3] == "electricity")):
+                # across the desired annual or sub-annual time horizon
+                if self.energy_outputs["tsv_metrics"] is not False or (
+                    self.tsv_features is not None and (
+                        mskeys[0] == "secondary" or (
+                            mskeys[0] == "primary" and
+                            mskeys[3] == "electricity"))):
                     tsv_scale_fracs = self.gen_tsv_facts(
                         tsv_data, mskeys, bldg_sect, convert_data)
                 else:
                     tsv_scale_fracs = {
-                        "energy": {"efficient": 1},
+                        "energy": {"baseline": 1, "efficient": 1},
                         "cost": {"baseline": 1, "efficient": 1},
                         "carbon": {"baseline": 1, "efficient": 1}}
 
@@ -2944,49 +3068,43 @@ class Measure(object):
         if mskeys[0] == "primary":
             # First, assume there is a load shape for the current end use
             try:
-                load_fact = tsv_data["load"][bldg_sect][mskeys[4]]
+                # Set load data end use key for later use in 'apply_tsv'
+                eu = mskeys[4]
+                # Key in the appropriate load shape data
+                load_fact = tsv_data["load"][bldg_sect][eu]
             except KeyError:
                 # If there is no load shape for the current end use, handle
                 # the resultant error differently for residential/commercial
                 if bldg_sect == "residential":
                     # Secondary heating maps to heating load shape
                     if mskeys[4] == "secondary heating":
-                        load_fact = \
-                            tsv_data["load"][bldg_sect]["secondary heating"]
+                        eu = "heating"
                     # Computers and TVs map to plug loads load shape
                     elif mskeys[4] in ["computers", "TVs"]:
-                        load_fact = \
-                            tsv_data["load"][bldg_sect]["plug loads"]
+                        eu = "plug loads"
                     # Ceiling fan maps to cooling load shape
                     elif mskeys[4] == "ceiling fan":
-                        load_fact = \
-                            tsv_data["load"][bldg_sect]["cooling"]
+                        eu = "cooling"
                     # Other end use maps to various load shapes
                     elif mskeys[4] == "other":
                         # Dishwasher technology maps to dishwasher
                         if mskeys[5] == "dishwasher":
-                            load_fact = tsv_data[
-                                "load"][bldg_sect]["dishwasher"]
+                            eu = "dishwasher"
                         # Clothes washing technology maps to clothes washing
                         elif mskeys[5] == "clothes washing":
-                            load_fact = tsv_data[
-                                "load"][bldg_sect]["clothes washing"]
+                            eu = "clothes washing"
                         # Clothes drying technology maps to clothes drying
                         elif mskeys[5] == "clothes drying":
-                            load_fact = tsv_data[
-                                "load"][bldg_sect]["clothes drying"]
+                            eu = "clothes drying"
                         # Pool heaters and pumps maps to pool heaters and pumps
                         elif mskeys[5] == "pool heaters and pumps":
-                            load_fact = tsv_data[
-                                "load"][bldg_sect]["pool heaters and pumps"]
+                            eu = "pool heaters and pumps"
                         # Freezers map to refrigeration
                         elif mskeys[5] == "freezers":
-                            load_fact = tsv_data[
-                                "load"][bldg_sect]["refrigeration"]
+                            eu = "refrigeration"
                         # All other other maps to other
                         else:
-                            load_fact = tsv_data[
-                                "load"][bldg_sect]["other"]
+                            eu = "other"
                     # In all other cases, error
                     else:
                         raise KeyError(
@@ -2997,21 +3115,26 @@ class Measure(object):
                     # For commercial PCs/non-PC office equipment, use the
                     # load shape for plug loads
                     if mskeys[4] in ["PCs", "non-PC office equipment"]:
-                        load_fact = tsv_data["load"][bldg_sect]["plug loads"]
+                        eu = "plug loads"
                     # For commercial MELs end uses, use the generic 'other'
                     # load shape
                     elif mskeys[4] == "MELs":
-                        load_fact = tsv_data["load"][bldg_sect]["other"]
+                        eu = "other"
                     # In all other cases, error
                     else:
                         raise KeyError(
                             "The following baseline segment could not be "
                             "mapped to any baseline load shape in the Scout "
                             "database: " + str(mskeys))
+                # Key in the appropriate load shape data
+                load_fact = tsv_data["load"][bldg_sect][eu]
+
         # Commercial secondary lighting microsegment case: use the lighting
         # load shape for secondary heating/cooling impacts from lighting
         else:
-            load_fact = tsv_data["load"][bldg_sect]["lighting"]
+            eu = "lighting"
+            # Key in the appropriate load shape data
+            load_fact = tsv_data["load"][bldg_sect][eu]
 
         # Set time-varying electricity price scaling factors for the EMM
         # region and building type combination
@@ -3037,7 +3160,7 @@ class Measure(object):
         ash_czone_wts = [[x["ASHRAE"], x[mskeys[1]]] for x in
                          self.handyvars.ash_emm_map if (x[mskeys[1]] != 0)]
         # Check to ensure that region weighting factors sum to 1
-        if sum([x[1] for x in ash_czone_wts]) != 1:
+        if round(sum([x[1] for x in ash_czone_wts]), 2) != 1:
             raise ValueError(
                 "ASHRAE climate -> EMM region weights for region " +
                 mskeys[1] + " and building type " + mskeys[2] +
@@ -3060,7 +3183,7 @@ class Measure(object):
         else:
             eplus_bldg_wts = {"ResStockSingleFamily": 1}
         # Check to ensure that building type weighting factors sum to 1
-        if (sum([x[1] for x in eplus_bldg_wts.items()]) != 1):
+        if round(sum([x[1] for x in eplus_bldg_wts.items()]), 2) != 1:
             raise ValueError(
                 "EPlus building -> Scout building mapping weights for region "
                 + mskeys[1] + " and building type " + mskeys[2] +
@@ -3127,12 +3250,12 @@ class Measure(object):
         # totals such that they reflect sub-annual assessment of these totals
         updated_tsv_fracs = self.apply_tsv(
             load_fact, ash_czone_wts, eplus_bldg_wts,
-            cost_fact_hourly, carbon_fact_hourly, mskeys, bldg_sect)
+            cost_fact_hourly, carbon_fact_hourly, mskeys, bldg_sect, eu)
 
         return updated_tsv_fracs
 
     def apply_tsv(self, load_fact, ash_cz_wts, eplus_bldg_wts,
-                  cost_fact_hourly, carbon_fact_hourly, mskeys, bldg_sect):
+                  cost_fact_hourly, carbon_fact_hourly, mskeys, bldg_sect, eu):
         """Apply time varying efficiency levels to base load profile.
 
         Args:
@@ -3143,6 +3266,7 @@ class Measure(object):
             carbon_fact_hourly (list): 8760 emissions scaling factors.
             mskeys (tuple): Microsegment information.
             bldg_sect (str): Building sector flag (residential/commercial).
+            eu (str): End use for keying time sensitive load data.
 
         Returns:
             Dict of microsegment-specific energy, cost, and emissions re-
@@ -3152,8 +3276,12 @@ class Measure(object):
 
         # Initialize overall factors to use in scaling annually-determined
         # baseline and efficient energy, cost and emissions data
-        cost_scale_base, carb_scale_base, energy_scale_eff, cost_scale_eff, \
-            carb_scale_eff = (0 for n in range(5))
+        cost_scale_base, carb_scale_base, energy_scale_base, \
+            energy_scale_eff, cost_scale_eff, \
+            carb_scale_eff = (0 for n in range(6))
+
+        # Create shorthand for measure's time sensitive metrics settings
+        tsv_metrics = self.energy_outputs["tsv_metrics"]
 
         # Loop through all EPlus building types (which commercial load profiles
         # are broken out by) that map to the current Scout building type
@@ -3180,7 +3308,7 @@ class Measure(object):
                 ash_cz_wts = [
                     [x[0], x[1]] for x in ash_cz_wts if x[0] in
                     load_fact.keys()]
-                load_fact_bldg_key = None
+                load_fact_bldg_key = "Single Family Home"
 
             # Ensure that ASHRAE climate zone weightings sum to 1
             ash_cz_renorm = sum([x[1] for x in ash_cz_wts])
@@ -3223,54 +3351,59 @@ class Measure(object):
                 # Initialize efficient load shape as equal to base load
                 eff_load_hourly = base_load_hourly
 
-                # Set the user-specified time-sensitive valuation parameters
+                # Set the user-specified time-sensitive valuation features
                 # for the current ECM; handle cases where this parameter is
-                # broken out by EMM region, building type, and/or end use
+                # broken out by EMM region, building type, and/or end use.
+                # If no time sensitive valuation features are given, reflect
+                # this with an empty dict
 
-                # By EMM region, building type, and end use
-                try:
-                    tsv_adjustments = self.time_sensitive_valuation[
-                        mskeys[1]][mskeys[2]][mskeys[4]]
-                # By EMM region and building type
-                except KeyError:
+                if self.tsv_features is not None:
+                    # By EMM region, building type, and end use
                     try:
-                        tsv_adjustments = self.time_sensitive_valuation[
-                            mskeys[1]][mskeys[2]]
-                    # By EMM region and end use
+                        tsv_adjustments = self.tsv_features[
+                            mskeys[1]][mskeys[2]][mskeys[4]]
+                    # By EMM region and building type
                     except KeyError:
                         try:
-                            tsv_adjustments = self.time_sensitive_valuation[
-                                mskeys[1]][mskeys[4]]
-                        # By building type and end use
+                            tsv_adjustments = self.tsv_features[
+                                mskeys[1]][mskeys[2]]
+                        # By EMM region and end use
                         except KeyError:
                             try:
-                                tsv_adjustments = \
-                                    self.time_sensitive_valuation[
-                                        mskeys[2]][mskeys[4]]
-                            # By EMM region
+                                tsv_adjustments = self.tsv_features[
+                                    mskeys[1]][mskeys[4]]
+                            # By building type and end use
                             except KeyError:
                                 try:
                                     tsv_adjustments = \
-                                        self.time_sensitive_valuation[
-                                            mskeys[1]]
-                                # By building type
+                                        self.tsv_features[
+                                            mskeys[2]][mskeys[4]]
+                                # By EMM region
                                 except KeyError:
                                     try:
                                         tsv_adjustments = \
-                                            self.time_sensitive_valuation[
-                                                mskeys[2]]
-                                    # By end use
+                                            self.tsv_features[
+                                                mskeys[1]]
+                                    # By building type
                                     except KeyError:
                                         try:
                                             tsv_adjustments = \
-                                                self.time_sensitive_valuation[
-                                                    mskeys[4]]
-                                        # Not broken out by any of these
+                                                self.tsv_features[
+                                                    mskeys[2]]
+                                        # By end use
                                         except KeyError:
-                                            tsv_adjustments = \
-                                                self.time_sensitive_valuation
+                                            try:
+                                                tsv_adjustments = \
+                                                    self.tsv_features[
+                                                        mskeys[4]]
+                                            # Not broken out by any of these
+                                            except KeyError:
+                                                tsv_adjustments = \
+                                                    self.tsv_features
+                else:
+                    tsv_adjustments = {}
 
-                # Loop through all time-varying efficiency impacts in sorted
+                # Loop through all time-varying efficiency features in sorted
                 # order, applying each successively to the base load shape
                 for a in [x for x in sorted(tsv_adjustments.keys())]:
 
@@ -3464,10 +3597,68 @@ class Measure(object):
                         elif "custom_annual_savings" in \
                             tsv_adjustments[a].keys() and tsv_adjustments[a][
                                 "custom_annual_savings"] is not None:
-                            # Set the custom 8760 savings shape (each element
-                            # of the list represents hourly savings fraction)
+                            # Set the custom 8760 savings shape data, which
+                            # should be in numpy array format and span all the
+                            # climate zones, building types, and end uses
+                            # covered by the current measure
                             custom_hr_save_shape = \
                                 tsv_adjustments[a]["custom_annual_savings"]
+                            # Key in the savings shape data by the current
+                            # combination of climate zone, building type,
+                            # and end use. In the residential sector, savings
+                            # shape will only be available for a single
+                            # building type (single family homes); therefore,
+                            # do not key in by building type
+                            if bldg_sect == "commercial":
+                                custom_hr_save_shape = custom_hr_save_shape[
+                                    numpy.in1d(custom_hr_save_shape[
+                                        "Climate_Zone"], cz[0]) &
+                                    numpy.in1d(custom_hr_save_shape[
+                                        "Building_Type"], load_fact_bldg_key) &
+                                    numpy.in1d(custom_hr_save_shape[
+                                        "End_Use"], eu)]['Relative_Savings']
+                            else:
+                                custom_hr_save_shape = custom_hr_save_shape[
+                                    numpy.in1d(custom_hr_save_shape[
+                                        "Climate_Zone"], cz[0]) &
+                                    numpy.in1d(custom_hr_save_shape[
+                                        "End_Use"], eu)]['Relative_Savings']
+
+                            # Ensure that the resultant custom savings shape
+                            # for the current combination of climate zone,
+                            # building type, and end use is 8760 elements,
+                            # representing 8760 hours of the year. If the
+                            # savings shape is zero elements, notify the
+                            # user that no savings shape data were found for
+                            # the current climate/building/end use
+                            # combination. If the savings shape is less than
+                            # or greater than 8760 elements, notify the user
+                            # that something else is wrong with their data
+                            if len(custom_hr_save_shape) == 0:
+                                raise ValueError(
+                                    "Measure '" + self.name + "', requires "
+                                    "custom savings shape data, but none were"
+                                    "found for the combination of climate "
+                                    "zone " + cz[0] + ", building type "
+                                    + load_fact_bldg_key + ", and end use " +
+                                    eu + ". Check that 8760 hourly savings " +
+                                    "fractions are available for all " +
+                                    "baseline market segments the measure " +
+                                    "applies to in ./ecm_definitions/"
+                                    "energy_plus_data/savings_shapes.")
+                            elif len(custom_hr_save_shape) != 8760:
+                                raise ValueError(
+                                    "Measure '" + self.name + "', requires "
+                                    "custom savings shape data, but the "
+                                    "custom shape given for climate "
+                                    "zone " + cz[0] + ", building type "
+                                    + load_fact_bldg_key + ", and end use " +
+                                    eu + " has more or less than 8760 values. "
+                                    "Check that 8760 hourly savings " +
+                                    "fractions are available for all " +
+                                    "baseline market segments the measure " +
+                                    "applies to in ./ecm_definitions/"
+                                    "energy_plus_data/savings_shapes.")
                             # Reflect custom load savings in efficient load
                             # shape
                             eff_load_hourly_n = [base_load_hourly[x] * (
@@ -3496,6 +3687,142 @@ class Measure(object):
                     else:
                         eff_load_hourly = eff_load_hourly_n
 
+                # Further adjust baseline and efficient load shapes
+                # to account for time sensitive valuation output metrics
+                if tsv_metrics is not False:
+
+                    # Set applicable daily hour range of focus (if any)
+
+                    # All 24 hours (no range)
+                    if tsv_metrics[1] == '1':
+                        tsv_metrics_hrs = None
+                    # Daily peak period hour range
+                    if tsv_metrics[1] == '2':
+                        tsv_metrics_hrs = self.handyvars.tsv_metrics_data[
+                            "day hours"]["peak period"]
+                    # Daily take period hour range
+                    elif tsv_metrics[1] == '3':
+                        tsv_metrics_hrs = self.handyvars.tsv_metrics_data[
+                            "day hours"]["take period"]
+
+                    # Set the applicable season of focus (if any) and, if
+                    # sub-annual, the subset of applicable days within year
+
+                    # No season of focus (annual)
+                    if tsv_metrics[2] == "0":
+                        season = "whole year"
+                        tsv_metrics_days = list(range(365))
+                    # Seasonal focus
+                    else:
+                        if tsv_metrics[2] == '1':
+                            season = "summer"
+                        elif tsv_metrics[2] == '2':
+                            season = "winter"
+                        elif tsv_metrics[2] == '3':
+                            season = "intermediate"
+                        # Set applicable days for season
+                        tsv_metrics_days = self.handyvars.tsv_metrics_data[
+                            "season days"][season]
+
+                    # Adjust the baseline and efficient loads to reflect
+                    # only the hourly values that fall within the applicable
+                    # hour and day ranges from above; set all inapplicable
+                    # values to zero (to maintain full 8760 list length)
+                    base_load_hourly, eff_load_hourly = [[
+                        x[i] if ((d + 1) in tsv_metrics_days and (
+                                 tsv_metrics[1] == '1' or
+                                 ((h + 1) in tsv_metrics_hrs["summer"]
+                                  if d in self.handyvars.tsv_metrics_data[
+                                   "season days"]["summer"] else
+                                  (h + 1) in tsv_metrics_hrs["winter"]
+                                  if d in self.handyvars.tsv_metrics_data[
+                                   "season days"]["winter"] else
+                                  (h + 1) in tsv_metrics_hrs["intermediate"])))
+                        else 0 for
+                        i, (d, h) in enumerate(
+                            itertools.product(range(365), range(24)))] for
+                        x in [base_load_hourly, eff_load_hourly]]
+
+                    # Proceed differently based on the type of tsv_metrics
+                    # output and output calculation method a user desires.
+                    # Possible options are: 1) energy (multiple hours) output
+                    # with either max or averaged values across applicable
+                    # hours/days, or 2) power (single hour) output with either
+                    # summer or averaged values across applicable hours/days
+
+                    # Sum (energy) or max (power) calculation output
+                    if tsv_metrics[3] == '1':
+                        # Power (single hour) output case
+                        if tsv_metrics[0] == '2':
+                            # Find the hourly index where the maximum
+                            # difference between base load and efficient load
+                            # occurs. If there is no difference between
+                            # these shapes, find the index where the maximum
+                            # base load fraction occurs
+                            base_eff_diff = [
+                                abs(x - y) for x, y in zip(base_load_hourly,
+                                                           eff_load_hourly)]
+                            max_ind = [numpy.where(base_eff_diff == numpy.amax(
+                                base_eff_diff)) if numpy.sum(
+                                base_eff_diff) != 0 else numpy.where(
+                                base_load_hourly == numpy.amax(
+                                    base_load_hourly))][0][0][0]
+                            # Restrict base and efficient hourly load shapes
+                            # further such that only the loads for the max
+                            # index from above are non-zero
+                            base_load_hourly, eff_load_hourly = [[
+                                x[i] if i == max_ind else 0 for
+                                i, (d, h) in enumerate(itertools.product(
+                                    range(365), range(24)))] for
+                                x in [base_load_hourly, eff_load_hourly]]
+                        # Energy (multiple hour) output case; no further
+                        # manipulations to the baseline or efficient load
+                        # shape lists are needed
+                        else:
+                            pass
+                    # Average calculation output
+                    elif tsv_metrics[3] == '2':
+                        # Develop averaging factor (number of days)
+
+                        # Power (single hour) output case; divide by total
+                        # applicable hours for the appropriate season times
+                        # total applicable days
+                        if tsv_metrics[0] == '2':
+                            #
+                            if season is not None:
+                                avg_len = len(tsv_metrics_days) * \
+                                          len(tsv_metrics_hrs[season])
+                            else:
+                                avg_len = len(tsv_metrics_days) * \
+                                          len(tsv_metrics_hrs["summer"])
+                        # Energy (multiple hour) output case; divide by total
+                        # applicable days
+                        else:
+                            avg_len = len(tsv_metrics_days)
+
+                        # Divide baseline and efficient hourly load shapes by
+                        # the averaging factor from above
+                        base_load_hourly, eff_load_hourly = [[
+                            (x / avg_len) for x in y] for y in [
+                            base_load_hourly, eff_load_hourly]]
+                    # Sum across all 8760 hourly baseline and efficient load
+                    # values to arrive at final factor used to rescale
+                    # annually-determined energy totals
+                    energy_scale_base += numpy.sum([
+                        x * emm_adj_wt for x in base_load_hourly])
+                    energy_scale_eff += numpy.sum([
+                        x * emm_adj_wt for x in eff_load_hourly])
+                else:
+                    # If no tsv metrics are specified, annually-determined
+                    # baseline energy total requires no rescaling (8760
+                    # baseline hourly values sum to 1)
+                    energy_scale_base = 1
+                    # Sum across all 8760 hourly efficient load values
+                    # to arrive at final factor used to rescale annually-
+                    # determined energy totals
+                    energy_scale_eff += numpy.sum([
+                        x * emm_adj_wt for x in eff_load_hourly])
+
                 # Calculate baseline cost and emissions rescaling factors as
                 # the sums of the hourly baseline load shape multiplied by the
                 # hourly price and emissions scaling factors, multiplied again
@@ -3507,11 +3834,6 @@ class Measure(object):
                 carb_scale_base += numpy.sum([
                     x * y * emm_adj_wt for x, y in zip(
                         base_load_hourly, carbon_fact_hourly)])
-                # Calculate efficient energy rescaling factor as the sum of
-                # the hourly efficient load shape multiplied by the appropriate
-                # weight for the current EMM region and Scout building type
-                energy_scale_eff += numpy.sum([
-                    x * emm_adj_wt for x in eff_load_hourly])
                 # Calculate efficient cost and emissions rescaling factors as
                 # the sums of the hourly efficient load shape times the hourly
                 # price and emissions scaling factors, multiplied again by the
@@ -3529,6 +3851,7 @@ class Measure(object):
         # totals such that they reflect sub-annual assessment of these totals
         updated_tsv_fracs = {
             "energy": {
+                "baseline": energy_scale_base,
                 "efficient": energy_scale_eff},
             "cost": {
                 "baseline": cost_scale_base,
@@ -3851,15 +4174,17 @@ class Measure(object):
         """
         # Initialize stock, energy, and carbon mseg partition dicts, where the
         # dict keys will be years in the modeling time horizon
-        stock_total, energy_total, carb_total, stock_total_meas, \
+        stock_total, energy_total, carb_total, energy_total_sbmkt, \
+            carb_total_sbmkt, stock_total_meas, \
             energy_total_eff, carb_total_eff, stock_compete, \
-            energy_compete, carb_compete, stock_compete_meas, \
+            energy_compete, carb_compete, energy_compete_sbmkt, \
+            carb_compete_sbmkt, stock_compete_meas, \
             energy_compete_eff, carb_compete_eff, stock_total_cost, \
             energy_total_cost, carb_total_cost, stock_total_cost_eff, \
             energy_total_eff_cost, carb_total_eff_cost, \
             stock_compete_cost, energy_compete_cost, carb_compete_cost, \
             stock_compete_cost_eff, energy_compete_cost_eff, \
-            carb_compete_cost_eff = ({} for n in range(24))
+            carb_compete_cost_eff = ({} for n in range(28))
 
         # Initialize the portion of microsegment already captured by the
         # efficient measure as 0, and the portion baseline stock as 1.
@@ -3870,8 +4195,8 @@ class Measure(object):
         # competed and uncompeted stock that goes uncaptured
         rel_perf_uncapt = 1
         # Set time sensitive scaling factors for all uncaptured stock
-        tsv_ecost_base, tsv_carb_base = [
-            tsv_adj[x]["baseline"] for x in ["cost", "carbon"]]
+        tsv_energy_base, tsv_ecost_base, tsv_carb_base = [
+            tsv_adj[x]["baseline"] for x in ["energy", "cost", "carbon"]]
 
         # In cases where secondary microsegments are present, initialize a
         # dict of year-by-year secondary microsegment adjustment information
@@ -3984,9 +4309,10 @@ class Measure(object):
 
             # Stock, energy, and carbon adjustments
             stock_total[yr] = stock_total_init[yr] * mkt_scale_frac
-            energy_total[yr] = energy_total_init[yr] * mkt_scale_frac
-            carb_total[yr] = carb_total_init[yr] * mkt_scale_frac * \
-                tsv_carb_base
+            energy_total_sbmkt[yr] = energy_total_init[yr] * mkt_scale_frac
+            energy_total[yr] = energy_total_sbmkt[yr] * tsv_energy_base
+            carb_total_sbmkt[yr] = carb_total_init[yr] * mkt_scale_frac
+            carb_total[yr] = carb_total_sbmkt[yr] * tsv_carb_base
 
             # For a primary microsegment and adjusted adoption potential case,
             # determine the portion of competed stock that remains with the
@@ -4231,26 +4557,29 @@ class Measure(object):
                     secnd_mseg_adjkey is not None:
                 # Sub-market stock
                 secnd_adj_sbmkt["adjusted energy (sub-market)"][
-                    secnd_mseg_adjkey][yr] += energy_total[yr]
+                    secnd_mseg_adjkey][yr] += energy_total_sbmkt[yr]
                 # Total stock
                 secnd_adj_stk[
                     "original energy (total)"][secnd_mseg_adjkey][yr] += \
-                    energy_total[yr]
+                    energy_total_sbmkt[yr]
                 # Previously captured stock
                 secnd_adj_stk["adjusted energy (previously captured)"][
                     secnd_mseg_adjkey][yr] += \
-                    captured_eff_frac * energy_total[yr]
+                    captured_eff_frac * energy_total_sbmkt[yr]
                 # Competed stock
                 secnd_adj_stk["adjusted energy (competed)"][
-                    secnd_mseg_adjkey][yr] += competed_frac * energy_total[yr]
+                    secnd_mseg_adjkey][yr] += competed_frac * \
+                    energy_total_sbmkt[yr]
                 # Competed and captured stock
                 secnd_adj_stk["adjusted energy (competed and captured)"][
                     secnd_mseg_adjkey][yr] += \
-                    competed_captured_eff_frac * energy_total[yr]
+                    competed_captured_eff_frac * energy_total_sbmkt[yr]
 
             # Update competed stock, energy, and carbon
             stock_compete[yr] = stock_total[yr] * competed_frac
+            energy_compete_sbmkt[yr] = energy_total_sbmkt[yr] * competed_frac
             energy_compete[yr] = energy_total[yr] * competed_frac
+            carb_compete_sbmkt[yr] = carb_total_sbmkt[yr] * competed_frac
             carb_compete[yr] = carb_total[yr] * competed_frac
 
             # Determine the competed stock that is captured by the measure
@@ -4361,39 +4690,37 @@ class Measure(object):
             # for the given year (if not, use baseline energy and carbon)
 
             # Competed-efficient energy
-            energy_compete_eff[yr] = energy_total[yr] * \
+            energy_compete_eff[yr] = energy_total_sbmkt[yr] * \
                 competed_captured_eff_frac * rel_perf_capt * \
                 tsv_energy_eff * \
                 (site_source_conv_meas[yr] / site_source_conv_base[yr]) + \
-                energy_total[yr] * (
+                energy_total_sbmkt[yr] * (
                     competed_frac - competed_captured_eff_frac) * \
-                rel_perf_uncapt
+                rel_perf_uncapt * tsv_energy_base
             # Total-efficient energy
             energy_total_eff[yr] = energy_compete_eff[yr] + \
-                (energy_total[yr] - energy_compete[yr]) * \
+                (energy_total_sbmkt[yr] - energy_compete_sbmkt[yr]) * \
                 captured_eff_frac * rel_perf_capt * \
                 tsv_energy_eff * \
                 (site_source_conv_meas[yr] / site_source_conv_base[yr]) + \
-                (energy_total[yr] - energy_compete[yr]) * \
-                (1 - captured_eff_frac) * rel_perf_uncapt
+                (energy_total_sbmkt[yr] - energy_compete_sbmkt[yr]) * \
+                (1 - captured_eff_frac) * rel_perf_uncapt * tsv_energy_base
             # Competed-efficient carbon
-            carb_compete_eff[yr] = (carb_total_init[yr] * mkt_scale_frac) * \
+            carb_compete_eff[yr] = carb_total_sbmkt[yr] * \
                 competed_captured_eff_frac * rel_perf_capt * \
                 tsv_carb_eff * \
                 (site_source_conv_meas[yr] / site_source_conv_base[yr]) * \
                 (intensity_carb_meas[yr] / intensity_carb_base[yr]) + \
-                (carb_total_init[yr] * mkt_scale_frac) * (
+                carb_total_sbmkt[yr] * (
                     competed_frac - competed_captured_eff_frac) * \
                 rel_perf_uncapt * tsv_carb_base
             # Total-efficient carbon
             carb_total_eff[yr] = carb_compete_eff[yr] + \
-                ((carb_total_init[yr] * mkt_scale_frac) -
-                 (carb_total_init[yr] * mkt_scale_frac * competed_frac)) * \
+                (carb_total_sbmkt[yr] - carb_compete_sbmkt[yr]) * \
                 captured_eff_frac * rel_perf_capt * tsv_carb_eff * \
                 (site_source_conv_meas[yr] / site_source_conv_base[yr]) * \
                 (intensity_carb_meas[yr] / intensity_carb_base[yr]) + \
-                ((carb_total_init[yr] * mkt_scale_frac) -
-                 (carb_total_init[yr] * mkt_scale_frac * competed_frac)) * (
+                (carb_total_sbmkt[yr] - carb_compete_sbmkt[yr]) * (
                     1 - captured_eff_frac) * rel_perf_uncapt * tsv_carb_base
 
             # Update total and competed stock, energy, and carbon
@@ -4431,27 +4758,28 @@ class Measure(object):
                     + (stock_total[yr] - stock_total_meas[yr]) * cost_base[yr]
 
             # Competed baseline energy cost
-            energy_compete_cost[yr] = \
-                energy_compete[yr] * cost_energy_base[yr] * tsv_ecost_base
+            energy_compete_cost[yr] = energy_compete_sbmkt[yr] * \
+                cost_energy_base[yr] * tsv_ecost_base
             # Competed energy-efficient cost
-            energy_compete_cost_eff[yr] = energy_total[yr] * \
+            energy_compete_cost_eff[yr] = energy_total_sbmkt[yr] * \
                 competed_captured_eff_frac * rel_perf_capt * \
                 (site_source_conv_meas[yr] / site_source_conv_base[yr]) * \
-                cost_energy_meas[yr] * tsv_ecost_eff + energy_total[yr] * (
+                cost_energy_meas[yr] * tsv_ecost_eff + \
+                energy_total_sbmkt[yr] * (
                     competed_frac - competed_captured_eff_frac) * \
                 cost_energy_base[yr] * rel_perf_uncapt * tsv_ecost_base
             # Total baseline energy cost
-            energy_total_cost[yr] = energy_total[yr] * cost_energy_base[yr] * \
-                tsv_ecost_base
+            energy_total_cost[yr] = energy_total_sbmkt[yr] * \
+                cost_energy_base[yr] * tsv_ecost_base
             # Total energy-efficient cost
             energy_total_eff_cost[yr] = energy_compete_cost_eff[yr] + \
-                (energy_total[yr] - energy_compete[yr]) * captured_eff_frac * \
-                rel_perf_capt * (
+                (energy_total_sbmkt[yr] - energy_compete_sbmkt[yr]) * \
+                captured_eff_frac * rel_perf_capt * (
                     site_source_conv_meas[yr] / site_source_conv_base[yr]) * \
                 cost_energy_meas[yr] * tsv_ecost_eff + (
-                    energy_total[yr] - energy_compete[yr]) * (
-                    1 - captured_eff_frac) * rel_perf_uncapt * \
-                cost_energy_base[yr] * tsv_ecost_base
+                    energy_total_sbmkt[yr] - energy_compete_sbmkt[yr]) * \
+                (1 - captured_eff_frac) * \
+                rel_perf_uncapt * cost_energy_base[yr] * tsv_ecost_base
 
             # Competed baseline carbon cost
             carb_compete_cost[yr] = carb_compete[yr] * \
@@ -5585,7 +5913,8 @@ class MeasurePackage(Measure):
         self.benefits = bens
         self.remove = False
         self.energy_outputs = {
-            "site_energy": False, "captured_energy_ss": False}
+            "site_energy": False, "captured_energy_ss": False,
+            "alt_regions": False, "tsv_metrics": False}
         # Check for consistent use of site or source energy units for all
         # ECMs in package
         if all([x.energy_outputs["site_energy"] is True for
@@ -5611,6 +5940,39 @@ class MeasurePackage(Measure):
         else:
             raise ValueError(
                 'Inconsistent site-source conversion methods '
+                'across contributing ECMs for package: ' + str(self.name) +
+                "'. To address this issue, delete the file "
+                "./supporting_data/ecm_prep.json and rerun ecm_prep.py.")
+        # Check for consistent use of alternate regional breakouts
+        # across all ECMs in a package
+        if all([x.energy_outputs["alt_regions"] is not False and (
+            x.energy_outputs["alt_regions"] ==
+            self.contributing_ECMs[0].energy_outputs["alt_regions"]) for
+                x in self.contributing_ECMs]):
+            self.energy_outputs["alt_regions"] = \
+                self.contributing_ECMs[0].energy_outputs["alt_regions"]
+        elif all([x.energy_outputs["alt_regions"] is False for
+                 x in self.contributing_ECMs]):
+            self.energy_outputs["alt_regions"] = False
+        else:
+            raise ValueError(
+                'Inconsistent regional breakout used '
+                'across contributing ECMs for package: ' + str(self.name) +
+                "'. To address this issue, delete the file "
+                "./supporting_data/ecm_prep.json and rerun ecm_prep.py.")
+        # Check for consistent use of tsv metrics across all ECMs in a package
+        if all([x.energy_outputs["tsv_metrics"] is not False and (
+            x.energy_outputs["tsv_metrics"] ==
+            self.contributing_ECMs[0].energy_outputs["tsv_metrics"]) for
+                x in self.contributing_ECMs]):
+            self.energy_outputs["tsv_metrics"] = \
+                self.contributing_ECMs[0].energy_outputs["tsv_metrics"]
+        elif all([x.energy_outputs["tsv_metrics"] is False for
+                 x in self.contributing_ECMs]):
+            self.energy_outputs["tsv_metrics"] = False
+        else:
+            raise ValueError(
+                'Inconsistent time sensitive valuation metrics used '
                 'across contributing ECMs for package: ' + str(self.name) +
                 "'. To address this issue, delete the file "
                 "./supporting_data/ecm_prep.json and rerun ecm_prep.py.")
@@ -6073,7 +6435,8 @@ class MeasurePackage(Measure):
 
 
 def prepare_measures(measures, convert_data, msegs, msegs_cpl, handyvars,
-                     cbecs_sf_byvint, tsv_data, base_dir, opts):
+                     handyfiles, cbecs_sf_byvint, tsv_data, base_dir, opts,
+                     regions, tsv_metrics):
     """Finalize measure markets for subsequent use in the analysis engine.
 
     Note:
@@ -6104,8 +6467,8 @@ def prepare_measures(measures, convert_data, msegs, msegs_cpl, handyvars,
     """
     # Initialize Measure() objects based on 'measures_update' list
     meas_update_objs = [Measure(
-        handyvars, opts.site_energy, opts.captured_energy, **m) for
-        m in measures]
+        base_dir, handyvars, handyfiles, opts.site_energy,
+        opts.captured_energy, regions, tsv_metrics, **m) for m in measures]
 
     # Fill in EnergyPlus-based performance information for Measure objects
     # with a 'From EnergyPlus' flag in their 'energy_efficiency' attribute
@@ -6143,7 +6506,8 @@ def prepare_measures(measures, convert_data, msegs, msegs_cpl, handyvars,
 
 
 def prepare_packages(packages, meas_update_objs, meas_summary,
-                     handyvars, handyfiles, base_dir, opts):
+                     handyvars, handyfiles, base_dir, opts,
+                     regions, tsv_metrics):
     """Combine multiple measures into a single packaged measure.
 
     Args:
@@ -6180,7 +6544,8 @@ def prepare_packages(packages, meas_update_objs, meas_summary,
             if len(meas_summary_data) == 1:
                 # Initialize the missing measure as an object
                 meas_obj = Measure(
-                    handyvars, opts.site_energy, opts.captured_energy,
+                    base_dir, handyvars, handyfiles, opts.site_energy,
+                    opts.captured_energy, regions, tsv_metrics,
                     **meas_summary_data[0])
                 # Reset measure technology type and total energy (used to
                 # normalize output breakout fractions) to their values in the
@@ -6366,6 +6731,78 @@ def main(base_dir):
     else:
         regions = "AIA"
 
+    # If a user wishes to change the outputs to metrics relevant for
+    # time-sensitive efficiency valuation, prompt them for information needed
+    # to reach the desired metric type
+    if opts.tsv_metrics is True:
+        # Determine the desired output type (change in energy, power)
+        output_type = input(
+            "Enter the type of time-sensitive metric desired "
+            "(1 = change in energy (e.g., multiple hour GWh), "
+            "2 = change in power (e.g., single hour GW)): ")
+
+        # Determine the hourly range to restrict results to (24h, peak, take)
+        hours = input(
+            "Enter the daily hour range to restrict to (1 = all hours, "
+            "2 = peak period hours, 3 = take period hours): ")
+
+        # Determine the season to restrict results to (none, summer, winter,
+        # intermediate)
+
+        # First determine whether a seasonal output is desired at all
+        time_bounds = input(
+            "Enter time scale (1 = annual, 2 = seasonal): ")
+        # If seasonal output is desired, determine the season; otherwise
+        # season is set to zero
+        if time_bounds == '2':
+            season = input(
+                "Enter the desired season of focus (1 = summer, "
+                "2 = winter, 3 = intermediate): ")
+        else:
+            season = 0
+
+        # Determine desired calculations (dependent on output type) for given
+        # flexibility mode, output type, and temporal boundaries
+
+        # Power output case (single hour)
+        if output_type == '1':
+            # Sum/average energy change across all hours
+            if hours == '1':
+                calc_type = input(
+                    "Enter calculation type (1 = sum across all "
+                    "hours, 2 = daily average): ")
+            # Sum/average energy change across peak hours
+            elif hours == '2':
+                calc_type = input(
+                    "Enter calculation type (1 = sum across peak "
+                    "hours, 2 = daily peak period average): ")
+            # Sum/average energy change across take hours
+            elif hours == '3':
+                calc_type = input(
+                    "Enter calculation type (1 = sum across take "
+                    "hours, 2 = daily take period average): ")
+        # Energy output case (multiple hours)
+        else:
+            # Max/average power change across all hours
+            if hours == '1':
+                calc_type = input(
+                    "Enter calculation type (1 = maximum across all "
+                    "hours, 2 = daily hourly average): ")
+            # Max/average power change across peak hours
+            elif hours == '2':
+                calc_type = input(
+                    "Enter calculation type (1 = maximum across daily peak "
+                    "hours, 2 = daily peak period hourly average): ")
+            # Max/average power change across take hours
+            elif hours == '3':
+                calc_type = input(
+                    "Enter calculation type (1 = maximum across daily take "
+                    "hours, 2 = daily take period hourly average): ")
+        # Summarize user TSV metric settings in a single dict for further use
+        tsv_metrics = [output_type, hours, season, calc_type]
+    else:
+        tsv_metrics = None
+
     # Custom format all warning messages (ignore everything but
     # message itself) *** Note: sometimes yields error; investigate ***
     # warnings.formatwarning = custom_formatwarning
@@ -6443,13 +6880,31 @@ def main(base_dir):
                    (opts is not None and opts.captured_energy is True and
                     all([y["energy_outputs"]["captured_energy_ss"] is False
                          for y in meas_summary if y["name"] ==
-                         meas_dict["name"]])) or\
+                         meas_dict["name"]])) or \
+                   (opts is not None and opts.alt_regions is True and
+                    all([(y["energy_outputs"]["alt_regions"] is False or
+                          y["energy_outputs"]["alt_regions"] != regions)
+                         for y in meas_summary if y["name"] ==
+                         meas_dict["name"]])) or \
+                   (opts is None or opts.tsv_metrics is True and
+                    all([y["energy_outputs"]["tsv_metrics"] is False or
+                         y["energy_outputs"]["tsv_metrics"] != tsv_metrics
+                         for y in meas_summary if y["name"] ==
+                         meas_dict["name"]])) or \
                    (opts is None or opts.site_energy is False and
                     all([y["energy_outputs"]["site_energy"] is True for
                          y in meas_summary if y["name"] ==
                          meas_dict["name"]])) or \
                    (opts is None or opts.captured_energy is False and
                     all([y["energy_outputs"]["captured_energy_ss"] is True
+                         for y in meas_summary if y["name"] ==
+                         meas_dict["name"]])) or \
+                   (opts is not None and opts.alt_regions is False and
+                    all([y["energy_outputs"]["alt_regions"] is not False
+                         for y in meas_summary if y["name"] ==
+                         meas_dict["name"]])) or \
+                   (opts is None or opts.tsv_metrics is False and
+                    all([y["energy_outputs"]["tsv_metrics"] is not False
                          for y in meas_summary if y["name"] ==
                          meas_dict["name"]])):
                     # Append measure dict to list of measure definitions
@@ -6593,13 +7048,14 @@ def main(base_dir):
         # Prepare new or edited measures for use in analysis engine
         meas_prepped_objs = prepare_measures(
             meas_toprep_indiv, convert_data, msegs, msegs_cpl, handyvars,
-            cbecs_sf_byvint, tsv_data, base_dir, opts)
+            handyfiles, cbecs_sf_byvint, tsv_data, base_dir, opts, regions,
+            tsv_metrics)
 
         # Prepare measure packages for use in analysis engine (if needed)
         if meas_toprep_package:
             meas_prepped_objs = prepare_packages(
                 meas_toprep_package, meas_prepped_objs, meas_summary,
-                handyvars, handyfiles, base_dir, opts)
+                handyvars, handyfiles, base_dir, opts, regions, tsv_metrics)
 
         # Split prepared measure data into subsets needed to set high-level
         # measure attributes information and to execute measure competition
@@ -6664,6 +7120,13 @@ if __name__ == "__main__":
     # Optional flag for non-AIA regional breakdown
     parser.add_argument("--alt_regions", action="store_true",
                         help="Flag alternate regional breakdown")
+    # Optional flag for non-AIA regional breakdown
+    parser.add_argument("--tsv_metrics", action="store_true",
+                        help="Flag time sensitive valuation metrics")
+    # Optional flag for persistent relative performance after market entry
+    parser.add_argument("--rp_persist", action="store_true",
+                        help="Flag consistent relative performance value "
+                        "after market entry")
     # Optional flag to print all warning messages to stdout
     parser.add_argument("--verbose", action="store_true",
                         help="Print all warnings to stdout")

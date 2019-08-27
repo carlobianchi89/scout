@@ -61,11 +61,21 @@ class CommonMethods(object):
             elif isinstance(i, numpy.ndarray) or isinstance(i, list):
                 self.assertTrue(type(i) == type(i2) and len(i) == len(i2))
                 for x in range(0, len(i)):
-                    self.assertAlmostEqual(i[x], i2[x], places=5)
+                    # Ensure that very small numbers do not reduce to 0
+                    if round(i[x], 5) != 0:
+                        self.assertAlmostEqual(i[x], i2[x], places=5)
+                    else:
+                        self.assertAlmostEqual(i[x], i2[x], places=10)
+            elif isinstance(i, str):
+                self.assertEqual(i, i2)
             # At the terminal/leaf node, formatted as a point value
             else:
-                # Compare the values, allowing for floating point inaccuracy
-                self.assertAlmostEqual(i, i2, places=2)
+                # Compare the values, allowing for floating point inaccuracy.
+                # Ensure that very small numbers do not reduce to 0
+                if round(i, 2) != 0:
+                    self.assertAlmostEqual(i, i2, places=2)
+                else:
+                    self.assertAlmostEqual(i, i2, places=10)
 
 
 class EPlusGlobalsTest(unittest.TestCase, CommonMethods):
@@ -218,12 +228,12 @@ class EPlusUpdateTest(unittest.TestCase, CommonMethods):
         # Base directory
         base_dir = os.getcwd()
         # Useful global variables for the sample measure object
-        handyvars = ecm_prep.UsefulVars(base_dir,
-                                        ecm_prep.UsefulInputFiles(
-                                            capt_energy=None, regions="AIA"),
-                                        regions="AIA")
+        handyfiles = ecm_prep.UsefulInputFiles(capt_energy=None, regions="AIA")
+        handyvars = ecm_prep.UsefulVars(base_dir, handyfiles, regions="AIA")
         cls.meas = ecm_prep.Measure(
-            handyvars, site_energy=None, capt_energy=None, **sample_measure_in)
+            base_dir, handyvars, handyfiles, site_energy=None,
+            capt_energy=None, regions="AIA", tsv_metrics=None,
+            **sample_measure_in)
         # Finalize the measure's 'technology_type' attribute (handled by the
         # 'fill_attr' function, which is not run as part of this test)
         cls.meas.technology_type = {"primary": "supply", "secondary": "demand"}
@@ -704,13 +714,14 @@ class EPlusUpdateTest(unittest.TestCase, CommonMethods):
 
 class UserOptions(object):
     """Generate sample user-specified execution options."""
-    def __init__(self, site, capt, regions, warnings):
+    def __init__(self, site, capt, regions, rp_persist, warnings):
         # Options include site energy outputs, captured energy site-source
         # calculation method, alternate regions, and verbose mode that prints
         # all warnings
         self.site_energy = site
         self.captured_energy = capt
         self.alt_regions = regions
+        self.rp_persist = rp_persist
         self.verbose = warnings
 
 
@@ -778,10 +789,9 @@ class MarketUpdatesTest(unittest.TestCase, CommonMethods):
         """Define variables and objects for use across all class functions."""
         # Base directory
         base_dir = os.getcwd()
-        handyvars = ecm_prep.UsefulVars(base_dir,
-                                        ecm_prep.UsefulInputFiles(
-                                            capt_energy=None, regions="AIA"),
-                                        regions="AIA")
+        handyfiles = ecm_prep.UsefulInputFiles(
+            capt_energy=None, regions="AIA")
+        handyvars = ecm_prep.UsefulVars(base_dir, handyfiles, regions="AIA")
         # Hard code aeo_years to fit test years
         handyvars.aeo_years = ["2009", "2010"]
         handyvars.retro_rate = 0.02
@@ -817,7 +827,7 @@ class MarketUpdatesTest(unittest.TestCase, CommonMethods):
                 "other fuel": {"2009": 14.81, "2010": 14.87}}}
         handyvars.ccosts = {"2009": 33, "2010": 33}
         cls.opts = UserOptions(
-            site=None, capt=None, regions=None, warnings=None)
+            site=None, capt=None, regions=None, rp_persist=None, warnings=None)
         cls.convert_data = {}
         cls.tsv_data = {}
         cls.sample_mseg_in = {
@@ -4982,16 +4992,19 @@ class MarketUpdatesTest(unittest.TestCase, CommonMethods):
             "retro_rate": 0.02}]
         cls.ok_tpmeas_fullchk_in = [
             ecm_prep.Measure(
-                handyvars, site_energy=None, capt_energy=None, **x) for
+                base_dir, handyvars, handyfiles, site_energy=None,
+                capt_energy=None, regions="AIA", tsv_metrics=None, **x) for
             x in ok_measures_in[0:5]]
         cls.ok_tpmeas_partchk_in = [
             ecm_prep.Measure(
-                handyvars, site_energy=None, capt_energy=None, **x) for
+                base_dir, handyvars, handyfiles, site_energy=None,
+                capt_energy=None, regions="AIA", tsv_metrics=None, **x) for
             x in ok_measures_in[
                 5:22]]
         cls.ok_mapmeas_partchk_in = [
             ecm_prep.Measure(
-                handyvars, site_energy=None, capt_energy=None, **x) for
+                base_dir, handyvars, handyfiles, site_energy=None,
+                capt_energy=None, regions="AIA", tsv_metrics=None, **x) for
             x in ok_measures_in[22:]]
         ok_measures_site_energy = [
             {"name": "sample measure 1 - site energy",
@@ -5019,7 +5032,9 @@ class MarketUpdatesTest(unittest.TestCase, CommonMethods):
              "technology": ["resistance heat", "ASHP", "GSHP", "room AC"]}
             ]
         cls.ok_tpmeas_sitechk_in = [ecm_prep.Measure(
-            handyvars, site_energy=None, capt_energy=None, **x) for
+            base_dir, handyvars, handyfiles, site_energy=None,
+            capt_energy=None, regions="AIA", tsv_metrics=None,
+            **x) for
             x in ok_measures_site_energy]
         ok_distmeas_in = [{
             "name": "distrib measure 1",
@@ -5121,7 +5136,8 @@ class MarketUpdatesTest(unittest.TestCase, CommonMethods):
         numpy.random.seed(1234)
         cls.ok_distmeas_in = [
             ecm_prep.Measure(
-                handyvars, site_energy=None, capt_energy=None, **x) for
+                base_dir, handyvars, handyfiles, site_energy=None,
+                capt_energy=None, regions="AIA", tsv_metrics=None, **x) for
             x in ok_distmeas_in]
         ok_partialmeas_in = [{
             "name": "partial measure 1",
@@ -5168,7 +5184,8 @@ class MarketUpdatesTest(unittest.TestCase, CommonMethods):
                 "external (LED)", "GSHP", "ASHP"]}]
         cls.ok_partialmeas_in = [
             ecm_prep.Measure(
-                handyvars, site_energy=None, capt_energy=None, **x) for
+                base_dir, handyvars, handyfiles, site_energy=None,
+                capt_energy=None, regions="AIA", tsv_metrics=None, **x) for
             x in ok_partialmeas_in]
         failmeas_in = [{
             "name": "fail measure 1",
@@ -5297,10 +5314,13 @@ class MarketUpdatesTest(unittest.TestCase, CommonMethods):
             "technology": [None, "distribution transformers"]}]
         cls.failmeas_inputs_in = [
             ecm_prep.Measure(
-                handyvars, site_energy=None, capt_energy=None, **x) for
+                base_dir, handyvars, handyfiles, site_energy=None,
+                capt_energy=None, regions="AIA", tsv_metrics=None, **x) for
             x in failmeas_in[0:-1]]
         cls.failmeas_missing_in = ecm_prep.Measure(
-            handyvars, site_energy=None, capt_energy=None, **failmeas_in[-1])
+            base_dir, handyvars, handyfiles, site_energy=None,
+            capt_energy=None, regions="AIA", tsv_metrics=None,
+            **failmeas_in[-1])
         warnmeas_in = [{
             "name": "warn measure 1",
             "markets": None,
@@ -5459,7 +5479,8 @@ class MarketUpdatesTest(unittest.TestCase, CommonMethods):
                 "external (LED)"]}]
         cls.warnmeas_in = [
             ecm_prep.Measure(
-                handyvars, site_energy=None, capt_energy=None, **x) for
+                base_dir, handyvars, handyfiles, site_energy=None,
+                capt_energy=None, regions="AIA", tsv_metrics=None, **x) for
             x in warnmeas_in]
         cls.ok_tpmeas_fullchk_msegout = [{
             "stock": {
@@ -7498,7 +7519,8 @@ class MarketUpdatesTest(unittest.TestCase, CommonMethods):
             AssertionError: If function yields unexpected results.
         """
         # Run function on all measure objects and check output
-        opts = UserOptions(site=True, capt=True, regions=None, warnings=None)
+        opts = UserOptions(site=True, capt=True, regions=None, rp_persist=None,
+                           warnings=None)
         for idx, measure in enumerate(self.ok_tpmeas_sitechk_in):
             measure.fill_mkts(self.sample_mseg_in, self.sample_cpl_in,
                               self.convert_data, self.tsv_data, opts)
@@ -7588,8 +7610,10 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
       sample_bldg_sect (string): Sample baseline microsegment building sector.
       sample_cost_convert (dict): Sample technology cost conversion data.
       sample_tsv_data (dict): Sample time-varying load, price, and emissions.
-      ok_tsv_measures_in (list): Sample time sensitive efficiency measures.
-      ok_tsv_facts_out (list): Sample reweighting factor outcomes.
+      ok_tsv_measures_in_features (list): Sample TSV feature measures.
+      ok_tsv_measures_in_metrics (list): Sample TSV metrics measures.
+      ok_tsv_facts_out_features (list): Sample TSV feature measure outcomes.
+      ok_tsv_facts_out_metrics (list): Sample TSV metric measure outcomes.
     """
 
     @classmethod
@@ -7597,12 +7621,15 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
         """Define variables and objects for use across all class functions."""
         # Base directory
         base_dir = os.getcwd()
-        handyvars = ecm_prep.UsefulVars(base_dir,
-                                        ecm_prep.UsefulInputFiles(
-                                            capt_energy=None, regions="EMM"),
+        handyfiles = ecm_prep.UsefulInputFiles(capt_energy=None, regions="EMM")
+        handyfiles.tsv_shape_data = (
+            "ecm_definitions", "energyplus_data", "energyplus_test_ok",
+            "savings_shapes")
+        handyvars = ecm_prep.UsefulVars(base_dir, handyfiles,
                                         regions="EMM")
         # Hard code aeo_years to fit test years
         handyvars.aeo_years = ["2009", "2010"]
+
         cls.sample_ash_czone_wts = handyvars.ash_emm_map
         cls.sample_mskeys = (
           "primary", "FRCC", "large office", "electricity",
@@ -26030,7 +26057,8 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
             }
           }
         }
-        sample_tsv_measures_in = [
+        # Sample measures with time-sensitive valuation features
+        sample_tsv_measures_in_features = [
           {"name": "sample shed measure com.",
            "energy_efficiency": 0.2,
            "energy_efficiency_units": "relative savings (constant)",
@@ -26050,7 +26078,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
            "fuel_switch_to": None,
            "end_use": "heating",
            "technology": ["resistance heat", "ASHP"],
-           "time_sensitive_valuation": {
+           "tsv_features": {
               "shed": {
                 "relative energy change fraction": 0.2,
                 "start_hour": 6, "stop_hour": 10}
@@ -26074,7 +26102,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
            "fuel_switch_to": None,
            "end_use": "TVs",
            "technology": ["TV"],
-           "time_sensitive_valuation": {
+           "tsv_features": {
               "shed": {
                 "relative energy change fraction": 0.2,
                 "start_hour": 6, "stop_hour": 10}
@@ -26098,7 +26126,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
            "fuel_switch_to": None,
            "end_use": "heating",
            "technology": ["resistance heat", "ASHP"],
-           "time_sensitive_valuation": {
+           "tsv_features": {
               "shift": {
                 "relative energy change fraction": 0.2,
                 "start_hour": 6, "stop_hour": 10, "offset_hrs_earlier": 10}
@@ -26122,7 +26150,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
            "fuel_switch_to": None,
            "end_use": "heating",
            "technology": ["resistance heat", "ASHP"],
-           "time_sensitive_valuation": {
+           "tsv_features": {
               "shift": {
                 "start_hour": None, "stop_hour": None,
                 "offset_hrs_earlier": 10}
@@ -26146,7 +26174,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
            "fuel_switch_to": None,
            "end_use": "heating",
            "technology": ["resistance heat", "ASHP"],
-           "time_sensitive_valuation": {
+           "tsv_features": {
               "shift": {
                 "relative energy change fraction": 0.2,
                 "start_hour": 10, "stop_hour": 20, "offset_hrs_earlier": 10}
@@ -26170,7 +26198,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
            "fuel_switch_to": None,
            "end_use": "heating",
            "technology": ["resistance heat", "ASHP"],
-           "time_sensitive_valuation": {
+           "tsv_features": {
               "shape": {
                 "custom_daily_savings": [
                     0, 0, 0, 0, 0, 0, 0, 0, 0, -0.2, -0.5, -0.5, -0.5,
@@ -26195,7 +26223,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
            "fuel_switch_to": None,
            "end_use": "heating",
            "technology": ["resistance heat", "ASHP"],
-           "time_sensitive_valuation": {
+           "tsv_features": {
               "shape": {
                 "custom_daily_savings": [
                     0, 0, 0, 0, 0, -0.2, -0.5, -0.5, -0.5, 0, 0, 0, 0,
@@ -26221,7 +26249,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
            "fuel_switch_to": None,
            "end_use": "heating",
            "technology": ["resistance heat", "ASHP"],
-           "time_sensitive_valuation": {
+           "tsv_features": {
               "shape 1": {
                 "custom_daily_savings": [
                     0, 0, 0, 0, 0, -0.2, -0.5, -0.5, -0.5, 0, 0, 0, 0,
@@ -26258,18 +26286,60 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
            "fuel_switch_to": None,
            "end_use": "heating",
            "technology": ["resistance heat", "ASHP"],
-           "time_sensitive_valuation": {
+           "tsv_features": {
               "shape": {
-                "custom_annual_savings": numpy.random.uniform(0, 1, 8760)
+                "custom_annual_savings": "sample full 8760.csv"
                 }
             }
            }
           ]
-        cls.ok_tsv_measures_in = [ecm_prep.Measure(
-          handyvars, site_energy=None, capt_energy=None, **x) for
-            x in sample_tsv_measures_in]
-        cls.ok_tsv_facts_out = [{
+        cls.ok_tsv_measures_in_features = [ecm_prep.Measure(
+          base_dir, handyvars, handyfiles, site_energy=None, capt_energy=None,
+          regions="EMM", tsv_metrics=None, **x) for
+            x in sample_tsv_measures_in_features]
+        # Sample measure to use in testing time-sensitive valuation metrics
+        sample_tsv_measure_in_metrics = {
+           "name": "sample peak load tsv metrics",
+           "energy_efficiency": 0,
+           "energy_efficiency_units": "relative savings (constant)",
+           "markets": None,
+           "installed_cost": 25,
+           "cost_units": "2014$/ft^2 floor",
+           "market_entry_year": None,
+           "market_exit_year": None,
+           "product_lifetime": 1,
+           "market_scaling_fractions": None,
+           "market_scaling_fractions_source": None,
+           "measure_type": "full service",
+           "structure_type": ["new", "existing"],
+           "bldg_type": "large office",
+           "climate_zone": "FRCC",
+           "fuel_type": "electricity",
+           "fuel_switch_to": None,
+           "end_use": "heating",
+           "technology": ["resistance heat", "ASHP"],
+           "tsv_features": None}
+        # Sample time-sensitive valuation metrics user input settings
+        sample_tsv_metric_settings = [
+            ['2', '2', '1', '1'],
+            ['2', '2', '1', '2'],
+            ['1', '2', '1', '1'],
+            ['1', '2', '1', '2'],
+            ['1', '1', '0', '1'],
+            ['1', '1', '0', '2'],
+            ['2', '3', '1', '1'],
+            ['2', '3', '1', '2'],
+            ['1', '3', '1', '1'],
+            ['1', '3', '1', '2'],
+        ]
+        cls.ok_tsv_measures_in_metrics = [ecm_prep.Measure(
+          base_dir, handyvars, handyfiles, site_energy=None, capt_energy=None,
+          regions="EMM", tsv_metrics=sample_tsv_metric_settings[ind],
+          **sample_tsv_measure_in_metrics) for
+            ind, x in enumerate(sample_tsv_metric_settings)]
+        cls.ok_tsv_facts_out_features = [{
             "energy": {
+                "baseline": 1,
                 "efficient": 0.8998352106
             },
             "cost": {
@@ -26281,6 +26351,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
                 "efficient": 0.8770559971
             }}, {
             "energy": {
+                "baseline": 1,
                 "efficient": 0.8998352106
             },
             "cost": {
@@ -26292,6 +26363,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
                 "efficient": 0.8770559971
             }}, {
             "energy": {
+               "baseline": 1,
                "efficient": 1
             },
             "cost": {
@@ -26303,6 +26375,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
                "efficient": 0.97
             }}, {
             "energy": {
+               "baseline": 1,
                "efficient": 1
             },
             "cost": {
@@ -26314,6 +26387,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
                "efficient": 1.0011
             }}, {
             "energy": {
+               "baseline": 1,
                "efficient": 1
             },
             "cost": {
@@ -26325,6 +26399,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
                "efficient": 0.9780
             }}, {
             "energy": {
+               "baseline": 1,
                "efficient": 0.9322
             },
             "cost": {
@@ -26336,6 +26411,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
                "efficient": 0.9129
             }}, {
             "energy": {
+               "baseline": 1,
                "efficient": 1.0434
             },
             "cost": {
@@ -26348,6 +26424,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
             }},
             {
             "energy": {
+               "baseline": 1,
                "efficient": 1.0599
             },
             "cost": {
@@ -26360,6 +26437,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
             }},
             {
             "energy": {
+               "baseline": 1,
                "efficient": 0.5044
             },
             "cost": {
@@ -26370,20 +26448,155 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
                "baseline": 0.9752898084,
                "efficient": 0.4920
             }}]
+        cls.ok_tsv_facts_out_metrics = [{
+            "energy": {
+               "baseline": 0.0001480516717,
+               "efficient": 0.0001480516717
+            },
+            "cost": {
+               "baseline": 0.0002375234303,
+               "efficient": 0.0002375234303
+            },
+            "carbon": {
+               "baseline": 0.0001469348257,
+               "efficient": 0.0001469348257
+            }},
+            {
+            "energy": {
+               "baseline": 0.00002425291614,
+               "efficient": 0.00002425291614
+            },
+            "cost": {
+               "baseline": 0.00003406936172,
+               "efficient": 0.00003406936172
+            },
+            "carbon": {
+               "baseline": 0.00002188301028,
+               "efficient": 0.00002188301028
+            }},
+            {
+            "energy": {
+               "baseline": 0.01183542308,
+               "efficient": 0.01183542308
+            },
+            "cost": {
+               "baseline": 0.01662584852,
+               "efficient": 0.01662584852
+            },
+            "carbon": {
+               "baseline": 0.01067890902,
+               "efficient": 0.01067890902
+            }},
+            {
+            "energy": {
+               "baseline": 0.00009701166456,
+               "efficient": 0.00009701166456
+            },
+            "cost": {
+               "baseline": 0.0001362774469,
+               "efficient": 0.0001362774469
+            },
+            "carbon": {
+               "baseline": 0.00008753204112,
+               "efficient": 0.00008753204112
+            }},
+            {
+            "energy": {
+               "baseline": 1.000000000,
+               "efficient": 1.000000000
+            },
+            "cost": {
+               "baseline": 1.183367941,
+               "efficient": 1.183367941
+            },
+            "carbon": {
+               "baseline": 0.975289808,
+               "efficient": 0.975289808
+            }},
+            {
+            "energy": {
+               "baseline": 0.002739726027,
+               "efficient": 0.002739726027
+            },
+            "cost": {
+               "baseline": 0.003242103948,
+               "efficient": 0.003242103948
+            },
+            "carbon": {
+               "baseline": 0.002672026872,
+               "efficient": 0.002672026872
+            }},
+            {
+            "energy": {
+               "baseline": 0.00007543730405,
+               "efficient": 0.00007543730405
+            },
+            "cost": {
+               "baseline": 0.000121026173,
+               "efficient": 0.000121026173
+            },
+            "carbon": {
+               "baseline": 0.00007540089971,
+               "efficient": 0.00007540089971
+            }},
+            {
+            "energy": {
+               "baseline": 0.00000574222621,
+               "efficient": 0.00000574222621
+            },
+            "cost": {
+               "baseline": 0.000007045704791,
+               "efficient": 0.000007045704791
+            },
+            "carbon": {
+               "baseline": 0.000005223348565,
+               "efficient": 0.000005223348565
+            }},
+            {
+            "energy": {
+               "baseline": 0.00280220639,
+               "efficient": 0.00280220639
+            },
+            "cost": {
+               "baseline": 0.003438303938,
+               "efficient": 0.003438303938
+            },
+            "carbon": {
+               "baseline": 0.0025489941,
+               "efficient": 0.0025489941
+            }},
+            {
+            "energy": {
+               "baseline": 0.00002296890484,
+               "efficient": 0.00002296890484
+            },
+            "cost": {
+               "baseline": 0.00002818281916,
+               "efficient": 0.00002818281916
+            },
+            "carbon": {
+               "baseline": 0.00002089339426,
+               "efficient": 0.00002089339426
+            }}]
 
     def test_load_modification(self):
         """Test 'gen_tsv_facts' and nested 'apply_tsv' given valid inputs."""
-        for idx, measure in enumerate(self.ok_tsv_measures_in):
-            # Seed random number generator, for final custom load shape
-            # (load shape is generated via numpy.random.uniform operation)
-            if idx == len(self.ok_tsv_measures_in):
-                numpy.random.seed(1)
+        # Tests for measures with time sensitive valuation features
+        for idx, measure in enumerate(self.ok_tsv_measures_in_features):
             # Generate and test re-weighting factors against expected values
-            gen_tsv_facts_out = measure.gen_tsv_facts(
+            gen_tsv_facts_out_features = measure.gen_tsv_facts(
               self.sample_tsv_data, self.sample_mskeys, self.sample_bldg_sect,
               self.sample_cost_convert)
-            self.dict_check(gen_tsv_facts_out,
-                            self.ok_tsv_facts_out[idx])
+            self.dict_check(gen_tsv_facts_out_features,
+                            self.ok_tsv_facts_out_features[idx])
+        # Test for measure with time sensitive valuation metrics
+        for idx, measure in enumerate(self.ok_tsv_measures_in_metrics):
+            # Generate and test re-weighting factors against expected values
+            gen_tsv_facts_out_metrics = measure.gen_tsv_facts(
+              self.sample_tsv_data, self.sample_mskeys, self.sample_bldg_sect,
+              self.sample_cost_convert)
+            self.dict_check(gen_tsv_facts_out_metrics,
+                            self.ok_tsv_facts_out_metrics[idx])
 
 
 class PartitionMicrosegmentTest(unittest.TestCase, CommonMethods):
@@ -26396,7 +26609,8 @@ class PartitionMicrosegmentTest(unittest.TestCase, CommonMethods):
     Attributes:
         time_horizons (list): A series of modeling time horizons to use
             in the various test functions of the class.
-        handyvars (object): Global variables to use for the test measure.
+        handyfiles (object): Global input file data to use for the test.
+        handyvars (object): Global variables to use for the test.
         sample_measure_in (dict): Sample measure attributes.
         ok_diffuse_params_in (NoneType): Placeholder for eventual technology
             diffusion parameters to be used in 'adjusted adoption' scenario.
@@ -26436,10 +26650,10 @@ class PartitionMicrosegmentTest(unittest.TestCase, CommonMethods):
         cls.time_horizons = ["2009", "2010", "2011"]
         # Base directory
         base_dir = os.getcwd()
-        cls.handyvars = ecm_prep.UsefulVars(base_dir,
-                                            ecm_prep.UsefulInputFiles(
-                                                capt_energy=None,
-                                                regions="AIA"), regions="AIA")
+        cls.handyfiles = ecm_prep.UsefulInputFiles(capt_energy=None,
+                                                   regions="AIA")
+        cls.handyvars = ecm_prep.UsefulVars(base_dir, cls.handyfiles,
+                                            regions="AIA")
         cls.handyvars.ccosts = numpy.array(
             (b'Test', 1, 4, 1), dtype=[
                 ('Category', 'S11'), ('2009', '<f8'),
@@ -26467,7 +26681,8 @@ class PartitionMicrosegmentTest(unittest.TestCase, CommonMethods):
                 "secondary": None},
             "retro_rate": 0.02}
         cls.measure_instance = ecm_prep.Measure(
-            cls.handyvars, site_energy=None, capt_energy=None,
+            base_dir, cls.handyvars, cls.handyfiles, site_energy=None,
+            capt_energy=None, regions="AIA", tsv_metrics=None,
             **sample_measure_in)
         cls.ok_diffuse_params_in = None
         cls.ok_mskeys_in = [
@@ -26889,7 +27104,7 @@ class PartitionMicrosegmentTest(unittest.TestCase, CommonMethods):
         self.measure_instance.market_exit_year = \
             int(self.time_horizons[-1]) + 1
         ok_tsv_scale_fracs_in = {
-          "energy": {"efficient": 1},
+          "energy": {"baseline": 1, "efficient": 1},
           "cost": {"baseline": 1, "efficient": 1},
           "carbon": {"baseline": 1, "efficient": 1}}
 
@@ -26987,10 +27202,8 @@ class CheckMarketsTest(unittest.TestCase, CommonMethods):
     def setUpClass(cls):
         # Base directory
         base_dir = os.getcwd()
-        handyvars = ecm_prep.UsefulVars(base_dir,
-                                        ecm_prep.UsefulInputFiles(
-                                            capt_energy=None,
-                                            regions="AIA"), regions="AIA")
+        handyfiles = ecm_prep.UsefulInputFiles(capt_energy=None, regions="AIA")
+        handyvars = ecm_prep.UsefulVars(base_dir, handyfiles, regions="AIA")
         sample_measures_fail = [{
             "name": "sample measure 5",
             "market_entry_year": None,
@@ -27043,7 +27256,8 @@ class CheckMarketsTest(unittest.TestCase, CommonMethods):
                 "primary": "all",
                 "secondary": None}}]
         cls.sample_measures_fail = [ecm_prep.Measure(
-            handyvars, site_energy=None, capt_energy=None, **x) for
+            base_dir, handyvars, handyfiles, site_energy=None,
+            capt_energy=None, regions="AIA", tsv_metrics=None, **x) for
             x in sample_measures_fail]
 
     def test_invalid_mkts(self):
@@ -27078,10 +27292,8 @@ class FillParametersTest(unittest.TestCase, CommonMethods):
         """Define variables and objects for use across all class functions."""
         # Base directory
         base_dir = os.getcwd()
-        handyvars = ecm_prep.UsefulVars(base_dir,
-                                        ecm_prep.UsefulInputFiles(
-                                            capt_energy=None, regions="AIA"),
-                                        regions="AIA")
+        handyfiles = ecm_prep.UsefulInputFiles(capt_energy=None, regions="AIA")
+        handyvars = ecm_prep.UsefulVars(base_dir, handyfiles, regions="AIA")
         sample_measures = [{
             "name": "sample measure 1",
             "market_entry_year": None,
@@ -27247,7 +27459,8 @@ class FillParametersTest(unittest.TestCase, CommonMethods):
             "end_use": "heating",
             "technology": "all"}]
         cls.sample_measures_in = [ecm_prep.Measure(
-            handyvars, site_energy=None, capt_energy=None, **x) for
+            base_dir, handyvars, handyfiles, site_energy=None,
+            capt_energy=None, regions="AIA", tsv_metrics=None, **x) for
             x in sample_measures]
         cls.ok_primary_cpl_out = [[{
             'assembly': 2, 'education': 2, 'food sales': 2,
@@ -27627,10 +27840,8 @@ class CreateKeyChainTest(unittest.TestCase, CommonMethods):
         """Define variables and objects for use across all class functions."""
         # Base directory
         base_dir = os.getcwd()
-        handyvars = ecm_prep.UsefulVars(base_dir,
-                                        ecm_prep.UsefulInputFiles(
-                                            capt_energy=None, regions="AIA"),
-                                        regions="AIA")
+        handyfiles = ecm_prep.UsefulInputFiles(capt_energy=None, regions="AIA")
+        handyvars = ecm_prep.UsefulVars(base_dir, handyfiles, regions="AIA")
         sample_measure = {
             "name": "sample measure 2",
             "active": 1,
@@ -27675,7 +27886,9 @@ class CreateKeyChainTest(unittest.TestCase, CommonMethods):
                         "adjusted energy (total captured)": {},
                         "adjusted energy (competed and captured)": {}}}}}
         cls.sample_measure_in = ecm_prep.Measure(
-            handyvars, site_energy=None, capt_energy=None, **sample_measure)
+            base_dir, handyvars, handyfiles, site_energy=None,
+            capt_energy=None, regions="AIA", tsv_metrics=None,
+            **sample_measure)
         # Finalize the measure's 'technology_type' attribute (handled by the
         # 'fill_attr' function, which is not run as part of this test)
         cls.sample_measure_in.technology_type = {
@@ -27847,10 +28060,8 @@ class AddKeyValsTest(unittest.TestCase, CommonMethods):
         """Define variables and objects for use across all class functions."""
         # Base directory
         base_dir = os.getcwd()
-        handyvars = ecm_prep.UsefulVars(base_dir,
-                                        ecm_prep.UsefulInputFiles(
-                                            capt_energy=None, regions="AIA"),
-                                        regions="AIA")
+        handyfiles = ecm_prep.UsefulInputFiles(capt_energy=None, regions="AIA")
+        handyvars = ecm_prep.UsefulVars(base_dir, handyfiles, regions="AIA")
         sample_measure_in = {
             "name": "sample measure 1",
             "active": 1,
@@ -27873,7 +28084,9 @@ class AddKeyValsTest(unittest.TestCase, CommonMethods):
                 "primary": ["resistance heat", "ASHP", "GSHP", "room AC"],
                 "secondary": None}}
         cls.sample_measure_in = ecm_prep.Measure(
-            handyvars, site_energy=None, capt_energy=None, **sample_measure_in)
+            base_dir, handyvars, handyfiles, site_energy=None,
+            capt_energy=None, regions="AIA", tsv_metrics=None,
+            **sample_measure_in)
         cls.ok_dict1_in, cls.ok_dict2_in = ({
             "level 1a": {
                 "level 2aa": {"2009": 2, "2010": 3},
@@ -27966,10 +28179,8 @@ class DivKeyValsTest(unittest.TestCase, CommonMethods):
         """Define variables and objects for use across all class functions."""
         # Base directory
         base_dir = os.getcwd()
-        handyvars = ecm_prep.UsefulVars(base_dir,
-                                        ecm_prep.UsefulInputFiles(
-                                            capt_energy=None, regions="AIA"),
-                                        regions="AIA")
+        handyfiles = ecm_prep.UsefulInputFiles(capt_energy=None, regions="AIA")
+        handyvars = ecm_prep.UsefulVars(base_dir, handyfiles, regions="AIA")
         sample_measure_in = {
             "name": "sample measure 1",
             "active": 1,
@@ -27992,7 +28203,9 @@ class DivKeyValsTest(unittest.TestCase, CommonMethods):
                 "primary": ["resistance heat", "ASHP", "GSHP", "room AC"],
                 "secondary": None}}
         cls.sample_measure_in = ecm_prep.Measure(
-            handyvars, site_energy=None, capt_energy=None, **sample_measure_in)
+            base_dir, handyvars, handyfiles, site_energy=None,
+            capt_energy=None, regions="AIA", tsv_metrics=None,
+            **sample_measure_in)
         cls.ok_reduce_dict = {"2009": 100, "2010": 100}
         cls.ok_dict_in = {
             "AIA CZ1": {
@@ -28057,10 +28270,8 @@ class DivKeyValsFloatTest(unittest.TestCase, CommonMethods):
         """Define variables and objects for use across all class functions."""
         # Base directory
         base_dir = os.getcwd()
-        handyvars = ecm_prep.UsefulVars(base_dir,
-                                        ecm_prep.UsefulInputFiles(
-                                            capt_energy=None, regions="AIA"),
-                                        regions="AIA")
+        handyfiles = ecm_prep.UsefulInputFiles(capt_energy=None, regions="AIA")
+        handyvars = ecm_prep.UsefulVars(base_dir, handyfiles, regions="AIA")
         sample_measure_in = {
             "name": "sample measure 1",
             "active": 1,
@@ -28083,7 +28294,9 @@ class DivKeyValsFloatTest(unittest.TestCase, CommonMethods):
                 "primary": ["resistance heat", "ASHP", "GSHP", "room AC"],
                 "secondary": None}}
         cls.sample_measure_in = ecm_prep.Measure(
-            handyvars, site_energy=None, capt_energy=None, **sample_measure_in)
+            base_dir, handyvars, handyfiles, site_energy=None,
+            capt_energy=None, regions="AIA", tsv_metrics=None,
+            **sample_measure_in)
         cls.ok_reduce_num = 4
         cls.ok_dict_in = {
             "stock": {
@@ -28179,7 +28392,8 @@ class AppendKeyValsTest(unittest.TestCase):
     for describing a measure's applicable baseline market.
 
     Attributes:
-        handyvars (object): Global variables to use for the test measure.
+        handyfiles (object): Global input file data to use for the test.
+        handyvars (object): Global variables to use for the test.
         ok_mktnames_out (list): Set of valid names that should be generated
             by the function given valid inputs.
     """
@@ -28187,10 +28401,10 @@ class AppendKeyValsTest(unittest.TestCase):
     def setUpClass(cls):
         """Define variables and objects for use across all class functions."""
         base_dir = os.getcwd()
-        cls.handyvars = ecm_prep.UsefulVars(base_dir,
-                                            ecm_prep.UsefulInputFiles(
-                                                capt_energy=None,
-                                                regions="AIA"), regions="AIA")
+        cls.handyfiles = ecm_prep.UsefulInputFiles(capt_energy=None,
+                                                   regions="AIA")
+        cls.handyvars = ecm_prep.UsefulVars(
+            base_dir, cls.handyfiles, regions="AIA")
         cls.ok_mktnames_out = [
             "AIA_CZ1", "AIA_CZ2", "AIA_CZ3", "AIA_CZ4", "AIA_CZ5",
             "single family home",
@@ -28325,10 +28539,8 @@ class CostConversionTest(unittest.TestCase, CommonMethods):
         """Define variables and objects for use across all class functions."""
         # Base directory
         base_dir = os.getcwd()
-        handyvars = ecm_prep.UsefulVars(base_dir,
-                                        ecm_prep.UsefulInputFiles(
-                                            capt_energy=None, regions="AIA"),
-                                        regions="AIA")
+        handyfiles = ecm_prep.UsefulInputFiles(capt_energy=None, regions="AIA")
+        handyvars = ecm_prep.UsefulVars(base_dir, handyfiles, regions="AIA")
         # Set sample consumer price index data to ensure the test is not
         # dependent on any external price data files
         handyvars.consumer_price_ind = numpy.array([
@@ -28446,7 +28658,9 @@ class CostConversionTest(unittest.TestCase, CommonMethods):
                         "adjusted energy (competed and captured)": {}}}}}
         cls.verbose = None
         cls.sample_measure_in = ecm_prep.Measure(
-            handyvars, site_energy=None, capt_energy=None, **sample_measure_in)
+            base_dir, handyvars, handyfiles, site_energy=None,
+            capt_energy=None, regions="AIA", tsv_metrics=None,
+            **sample_measure_in)
         cls.sample_convertdata_ok_in = {
             "building type conversions": {
                 "original type": "EnergyPlus reference buildings",
@@ -28865,6 +29079,7 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
     Attributes:
         handyvars_aia (object): Global variables to use across AIA measures.
         handyvars_emm (object): Global variables to use across EMM measures.
+        handyfiles (object): Useful input file data.
         opts_aia (object): User-specified options for AIA-resolved case.
         opts_emm (object): User-specified options for EMM-resolved case.
         cbecs_sf_byvint (dict): Commercial square footage by vintage data.
@@ -28893,12 +29108,14 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
         """Define variables and objects for use across all class functions."""
         # Base directory
         cls.base_dir = os.getcwd()
+        cls.handyfiles_aia = ecm_prep.UsefulInputFiles(
+                capt_energy=None, regions="AIA")
+        cls.handyfiles_emm = ecm_prep.UsefulInputFiles(
+                capt_energy=None, regions="EMM")
         cls.handyvars_aia = ecm_prep.UsefulVars(
-            cls.base_dir, ecm_prep.UsefulInputFiles(
-                capt_energy=None, regions="AIA"), regions="AIA")
+            cls.base_dir, cls.handyfiles_aia, regions="AIA")
         cls.handyvars_emm = ecm_prep.UsefulVars(
-            cls.base_dir, ecm_prep.UsefulInputFiles(
-                capt_energy=None, regions="EMM"), regions="EMM")
+            cls.base_dir, cls.handyfiles_emm, regions="EMM")
         # Hard code aeo_years to fit test years
         cls.handyvars_aia.aeo_years, \
             cls.handyvars_emm.aeo_years = (["2009", "2010"] for n in range(2))
@@ -28963,9 +29180,9 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
         cls.handyvars_aia.ccosts, cls.handyvars_emm.ccosts = (
             {"2009": 33, "2010": 33} for n in range(2))
         cls.opts_aia = UserOptions(site=None, capt=None, regions=None,
-                                   warnings=None)
+                                   rp_persist=None, warnings=None)
         cls.opts_emm = UserOptions(site=None, capt=None,
-                                   regions=True,
+                                   regions=True, rp_persist=None,
                                    warnings=None)
         cls.sample_mseg_in_aia = {
             "AIA_CZ1": {
@@ -49890,7 +50107,7 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
             "fuel_switch_to": None,
             "end_use": "water heating",
             "technology": None,
-            "time_sensitive_valuation": None},
+            "tsv_features": None},
             {
             "name": "sample time sens. measure 1 to prepare",
             "markets": None,
@@ -49911,7 +50128,7 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
             "fuel_switch_to": None,
             "end_use": "heating",
             "technology": "windows solar",
-            "time_sensitive_valuation": {
+            "tsv_features": {
               "shed": {
                 "relative energy change fraction": 0.2,
                 "start_hour": 6, "stop_hour": 10}}},
@@ -49935,7 +50152,7 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
             "fuel_switch_to": None,
             "end_use": "heating",
             "technology": "windows solar",
-            "time_sensitive_valuation": {
+            "tsv_features": {
               "shed": {
                 "relative energy change fraction": 1,
                 "start_hour": 6, "stop_hour": 10}}},
@@ -49959,7 +50176,7 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
             "fuel_switch_to": None,
             "end_use": "heating",
             "technology": "windows solar",
-            "time_sensitive_valuation": {
+            "tsv_features": {
               "shed": {
                 "relative energy change fraction": 1,
                 "start_hour": 6, "stop_hour": 10}}},
@@ -49983,10 +50200,33 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
             "fuel_switch_to": None,
             "end_use": "heating",
             "technology": "windows solar",
-            "time_sensitive_valuation": {
+            "tsv_features": {
               "shed": {
                 "relative energy change fraction": 1,
-                "start_hour": 6, "stop_hour": 10}}}]
+                "start_hour": 6, "stop_hour": 10}}},
+            {
+            "name": "sample time sens. metrics measure",
+            "markets": None,
+            "installed_cost": 1.5,
+            "cost_units": "2014$/ft^2 floor",
+            "energy_efficiency": 0,
+            "energy_efficiency_units": "relative savings (constant)",
+            "market_entry_year": None,
+            "market_exit_year": None,
+            "product_lifetime": 1,
+            "market_scaling_fractions": None,
+            "market_scaling_fractions_source": None,
+            "measure_type": "full service",
+            "structure_type": ["new", "existing"],
+            "bldg_type": "single family home",
+            "climate_zone": "FRCC",
+            "fuel_type": "electricity",
+            "fuel_switch_to": None,
+            "end_use": "heating",
+            "technology": "windows solar",
+            "tsv_features": None}]
+        cls.sample_tsv_metric_settings = [
+            ['2', '2', '1', '1']]
         cls.ok_out_aia = [{
             "stock": {
                 "total": {
@@ -50033,7 +50273,7 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
                         "efficient": {"2009": 20343.64, "2010": 19768.37}}}},
             "lifetime": {"baseline": {"2009": 180, "2010": 180},
                          "measure": 1}}]
-        cls.ok_out_emm = [{
+        cls.ok_out_emm_features = [{
             "stock": {
                 "total": {
                     "all": {"2009": 11000000, "2010": 11000000},
@@ -50253,6 +50493,66 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
                             "2010": 2871.497025 / 2}}}},
             "lifetime": {"baseline": {"2009": 15, "2010": 15},
                          "measure": 1}}]
+        cls.ok_out_emm_metrics = [{
+            "stock": {
+                "total": {
+                    "all": {"2009": 11000000, "2010": 11000000},
+                    "measure": {"2009": 11000000, "2010": 11000000}},
+                "competed": {
+                    "all": {"2009": 11000000, "2010": 11000000},
+                    "measure": {"2009": 11000000, "2010": 11000000}}},
+            "energy": {
+                "total": {
+                    "baseline": {"2009": 0.0004722848327,
+                                 "2010": 0.0004737653494},
+                    "efficient": {"2009": 0.0004722848327,
+                                  "2010": 0.0004737653494}},
+                "competed": {
+                    "baseline": {"2009": 0.0004722848327,
+                                 "2010": 0.0004737653494},
+                    "efficient": {"2009": 0.0004722848327,
+                                  "2010": 0.0004737653494}}},
+            "carbon": {
+                "total": {
+                    "baseline": {"2009": 0.02664545748, "2010": 0.02640982197},
+                    "efficient": {
+                        "2009": 0.02664545748, "2010": 0.02640982197}},
+                "competed": {
+                    "baseline": {"2009": 0.02664545748, "2010": 0.02640982197},
+                    "efficient": {
+                        "2009": 0.02664545748, "2010": 0.02640982197}}},
+            "cost": {
+                "stock": {
+                    "total": {
+                        "baseline": {"2009": 16500000, "2010": 16500000},
+                        "efficient": {"2009": 16500000, "2010": 16500000}},
+                    "competed": {
+                        "baseline": {"2009": 16500000, "2010": 16500000},
+                        "efficient": {"2009": 16500000, "2010": 16500000}}},
+                "energy": {
+                    "total": {
+                        "baseline": {
+                            "2009": 0.006879913663, "2010": 0.006498641053},
+                        "efficient": {
+                            "2009": 0.006879913663, "2010": 0.006498641053}},
+                    "competed": {
+                        "baseline": {
+                            "2009": 0.006879913663, "2010": 0.006498641053},
+                        "efficient": {
+                            "2009": 0.006879913663, "2010": 0.006498641053}}},
+                "carbon": {
+                    "total": {
+                        "baseline": {
+                            "2009": 0.8793000969, "2010": 0.871524125},
+                        "efficient": {
+                            "2009": 0.8793000969, "2010": 0.871524125}},
+                    "competed": {
+                        "baseline": {
+                            "2009": 0.8793000969, "2010": 0.871524125},
+                        "efficient": {
+                            "2009": 0.8793000969, "2010": 0.871524125}}}},
+            "lifetime": {"baseline": {"2009": 15, "2010": 15},
+                         "measure": 1}}]
 
     def test_fillmeas_ok(self):
         """Test 'prepare_measures' function given valid measure inputs.
@@ -50265,26 +50565,46 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
         measures_out_aia = ecm_prep.prepare_measures(
             [self.measures_ok_in[0]], self.convert_data,
             self.sample_mseg_in_aia,
-            self.sample_cpl_in_aia, self.handyvars_aia, self.cbecs_sf_byvint,
-            self.sample_tsv_data, self.base_dir, self.opts_aia)
+            self.sample_cpl_in_aia, self.handyvars_aia,
+            self.handyfiles_aia, self.cbecs_sf_byvint,
+            self.sample_tsv_data, self.base_dir, self.opts_aia,
+            regions="AIA", tsv_metrics=None)
         # Assess AIA-resolved test measures
         for oc_aia in range(0, len(self.ok_out_aia)):
             self.dict_check(
                 measures_out_aia[oc_aia].markets[
                     "Technical potential"]["master_mseg"],
                 self.ok_out_aia[oc_aia])
-        # Check for measures using EMM baseline data
-        measures_out_emm = ecm_prep.prepare_measures(
-            self.measures_ok_in[1:], self.convert_data,
+        # Check for measures using EMM baseline data and tsv features
+        measures_out_emm_features = ecm_prep.prepare_measures(
+            self.measures_ok_in[1:-1], self.convert_data,
             self.sample_mseg_in_emm,
-            self.sample_cpl_in_emm, self.handyvars_emm, self.cbecs_sf_byvint,
-            self.sample_tsv_data, self.base_dir, self.opts_emm)
+            self.sample_cpl_in_emm, self.handyvars_emm,
+            self.handyfiles_emm, self.cbecs_sf_byvint,
+            self.sample_tsv_data, self.base_dir, self.opts_emm,
+            regions="EMM", tsv_metrics=None)
         # Assess EMM-resolved test measures
-        for oc_emm in range(0, len(self.ok_out_emm)):
+        for oc_emm in range(0, len(self.ok_out_emm_features)):
             self.dict_check(
-                measures_out_emm[oc_emm].markets[
+                measures_out_emm_features[oc_emm].markets[
                     "Technical potential"]["master_mseg"],
-                self.ok_out_emm[oc_emm])
+                self.ok_out_emm_features[oc_emm])
+
+        # Assess EMM-resolved test measures
+        for oc_emm in range(0, len(self.sample_tsv_metric_settings)):
+            # Check for measures using EMM baseline data and tsv metrics
+            measures_out_emm_metrics = ecm_prep.prepare_measures(
+                self.measures_ok_in[-1:], self.convert_data,
+                self.sample_mseg_in_emm,
+                self.sample_cpl_in_emm, self.handyvars_emm,
+                self.handyfiles_emm, self.cbecs_sf_byvint,
+                self.sample_tsv_data, self.base_dir, self.opts_emm,
+                regions="EMM",
+                tsv_metrics=self.sample_tsv_metric_settings[oc_emm])
+            self.dict_check(
+                measures_out_emm_metrics[oc_emm].markets[
+                    "Technical potential"]["master_mseg"],
+                self.ok_out_emm_metrics[oc_emm])
 
 
 class MergeMeasuresandApplyBenefitsTest(unittest.TestCase, CommonMethods):
@@ -50335,10 +50655,8 @@ class MergeMeasuresandApplyBenefitsTest(unittest.TestCase, CommonMethods):
             "energy savings increase": 0.3,
             "cost reduction": 0.2}
         # Useful global variables for the sample package measure objects
-        handyvars = ecm_prep.UsefulVars(base_dir,
-                                        ecm_prep.UsefulInputFiles(
-                                            capt_energy=None, regions="AIA"),
-                                        regions="AIA")
+        handyfiles = ecm_prep.UsefulInputFiles(capt_energy=None, regions="AIA")
+        handyvars = ecm_prep.UsefulVars(base_dir, handyfiles, regions="AIA")
         # Hard code aeo_years to fit test years
         handyvars.aeo_years = ["2009", "2010"]
         # Define a series of sample measures to package
@@ -53593,7 +53911,9 @@ class MergeMeasuresandApplyBenefitsTest(unittest.TestCase, CommonMethods):
                 "Technical potential": {"2009": 200, "2010": 200},
                 "Max adoption potential": {"2009": 200, "2010": 200}}}]
         cls.sample_measures_in = [ecm_prep.Measure(
-            handyvars, site_energy=None, capt_energy=None, **x) for
+            base_dir, handyvars, handyfiles, site_energy=None,
+            capt_energy=None, regions="AIA", tsv_metrics=None,
+            **x) for
             x in sample_measures_in]
         # Reset sample measure technology types (initialized as string)
         for ind, m in enumerate(cls.sample_measures_in):
@@ -55016,7 +55336,8 @@ class CleanUpTest(unittest.TestCase, CommonMethods):
     structure types.
 
     Attributes:
-        handyvars (object): Global variables to use for the test measure.
+        handyfiles (object): Global input file data to use for the test.
+        handyvars (object): Global variables to use for the test.
         sample_measlist_in (list): List of individual and packaged measure
             objects to clean up.
         sample_measlist_out_comp_data (list): Measure competition data that
@@ -55039,10 +55360,10 @@ class CleanUpTest(unittest.TestCase, CommonMethods):
         benefits = {
             "energy savings increase": None,
             "cost reduction": None}
-        cls.handyvars = ecm_prep.UsefulVars(base_dir,
-                                            ecm_prep.UsefulInputFiles(
-                                                capt_energy=None,
-                                                regions="AIA"), regions="AIA")
+        cls.handyfiles = ecm_prep.UsefulInputFiles(capt_energy=None,
+                                                   regions="AIA")
+        cls.handyvars = ecm_prep.UsefulVars(
+            base_dir, cls.handyfiles, regions="AIA")
         sample_measindiv_dicts = [{
             "name": "cleanup 1",
             "market_entry_year": None,
@@ -55058,7 +55379,8 @@ class CleanUpTest(unittest.TestCase, CommonMethods):
             "technology": {
                 "primary": None, "secondary": None}}]
         cls.sample_measlist_in = [ecm_prep.Measure(
-            cls.handyvars, site_energy=None, capt_energy=None, **x) for
+            base_dir, cls.handyvars, cls.handyfiles, site_energy=None,
+            capt_energy=None, regions="AIA", tsv_metrics=None, **x) for
             x in sample_measindiv_dicts]
         sample_measpackage = ecm_prep.MeasurePackage(
             copy.deepcopy(cls.sample_measlist_in), "cleanup 3",
@@ -55125,11 +55447,11 @@ class CleanUpTest(unittest.TestCase, CommonMethods):
         cls.sample_measlist_out_highlev_keys = [
             ["market_entry_year", "market_exit_year", "markets",
              "name", "out_break_norm", "remove", "retro_rate", 'technology',
-             'technology_type', 'time_sensitive_valuation',
+             'technology_type', 'tsv_features',
              'yrs_on_mkt', 'measure_type', 'energy_outputs'],
             ["market_entry_year", "market_exit_year", "markets",
              "name", "out_break_norm", "remove", "retro_rate", 'technology',
-             'technology_type', 'time_sensitive_valuation',
+             'technology_type', 'tsv_features',
              'yrs_on_mkt', 'measure_type', 'energy_outputs'],
             ['benefits', 'bldg_type', 'climate_zone', 'end_use', 'fuel_type',
              "technology", "technology_type",
