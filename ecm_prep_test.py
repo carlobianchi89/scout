@@ -7629,7 +7629,260 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
                                         regions="EMM")
         # Hard code aeo_years to fit test years
         handyvars.aeo_years = ["2009", "2010"]
-
+        # Hard code tsv_metrics_data
+        handyvars.tsv_metrics_data = {
+            "season days": {
+                "summer": list(range(151, 273)),
+                "winter": (list(
+                    range(1, 59)) + list(range(334, 365))),
+                "intermediate": (list(
+                    range(59, 151)) + list(range(273, 334)))
+            },
+            "peak_take data": {
+                "summer": {
+                    "hour ranges": {
+                        "peak": {
+                            "2A": list(range(17, 21)),
+                            "2B": list(range(16, 19)),
+                            "3A": list(range(18, 21)),
+                            "3B": list(range(18, 21)),
+                            "3C": list(range(17, 20)),
+                            "4A": list(range(17, 20)),
+                            "4B": list(range(16, 19)),
+                            "4C": list(range(16, 19)),
+                            "5A": list(range(17, 20)),
+                            "5B": list(range(16, 19)),
+                            "5C": list(range(16, 19)),
+                            "6A": list(range(16, 19)),
+                            "6B": list(range(16, 19)),
+                            "7": list(range(16, 19))},
+                        "take": {
+                            "2A": list(range(12, 16)),
+                            "2B": list(range(4, 7)),
+                            "3A": list(range(4, 7)),
+                            "3B": list(range(4, 7)),
+                            "3C": list(range(12, 15)),
+                            "4A": list(range(4, 7)),
+                            "4B": list(range(4, 7)),
+                            "4C": list(range(2, 5)),
+                            "5A": list(range(4, 7)),
+                            "5B": list(range(3, 6)),
+                            "5C": list(range(2, 5)),
+                            "6A": list(range(4, 7)),
+                            "6B": list(range(2, 5)),
+                            "7": list(range(4, 7))}},
+                    "peak day": {
+                        "day of year": {
+                            "2A": 270,
+                            "2B": 186,
+                            "3A": 192,
+                            "3B": 171,
+                            "3C": 220,
+                            "4A": 192,
+                            "4B": 206,
+                            "4C": 241,
+                            "5A": 199,
+                            "5B": 178,
+                            "5C": 206,
+                            "6A": 186,
+                            "6B": 220,
+                            "7": 206},
+                        "max hour": {
+                            "2A": 20,
+                            "2B": 17,
+                            "3A": 19,
+                            "3B": 19,
+                            "3C": 21,
+                            "4A": 18,
+                            "4B": 17,
+                            "4C": 18,
+                            "5A": 18,
+                            "5B": 17,
+                            "5C": 18,
+                            "6A": 17,
+                            "6B": 18,
+                            "7": 17},
+                        "min hour": {
+                            "2A": 14,
+                            "2B": 6,
+                            "3A": 4,
+                            "3B": 6,
+                            "3C": 13,
+                            "4A": 5,
+                            "4B": 6,
+                            "4C": 4,
+                            "5A": 5,
+                            "5B": 4,
+                            "5C": 4,
+                            "6A": 5,
+                            "6B": 4,
+                            "7": 5}
+                    }
+                },
+                "winter": {
+                    "hour ranges": {
+                        "peak": {
+                            "2A": list(range(17, 20)),
+                            "2B": list(range(17, 20)),
+                            "3A": list(range(17, 20)),
+                            "3B": list(range(18, 21)),
+                            "3C": list(range(17, 20)),
+                            "4A": list(range(17, 20)),
+                            "4B": list(range(17, 20)),
+                            "4C": list(range(17, 20)),
+                            "5A": list(range(17, 20)),
+                            "5B": list(range(17, 20)),
+                            "5C": list(range(18, 21)),
+                            "6A": list(range(19, 22)),
+                            "6B": list(range(17, 20)),
+                            "7": list(range(19, 22))},
+                        "take": {
+                            "2A": list(range(13, 16)),
+                            "2B": list(range(13, 16)),
+                            "3A": list(range(13, 16)),
+                            "3B": list(range(13, 16)),
+                            "3C": list(range(12, 15)),
+                            "4A": list(range(11, 14)),
+                            "4B": list(range(11, 14)),
+                            "4C": list(range(12, 15)),
+                            "5A": list(range(11, 14)),
+                            "5B": list(range(12, 15)),
+                            "5C": list(range(12, 15)),
+                            "6A": list(range(3, 6)),
+                            "6B": list(range(12, 15)),
+                            "7": list(range(3, 6))}},
+                    "peak day": {
+                        "day of year": {
+                            "2A": 24,
+                            "2B": 17,
+                            "3A": 31,
+                            "3B": 10,
+                            "3C": 10,
+                            "4A": 31,
+                            "4B": 339,
+                            "4C": 38,
+                            "5A": 26,
+                            "5B": 10,
+                            "5C": 12,
+                            "6A": 10,
+                            "6B": 17,
+                            "7": 31},
+                        "max hour": {
+                            "2A": 20,
+                            "2B": 20,
+                            "3A": 19,
+                            "3B": 20,
+                            "3C": 19,
+                            "4A": 19,
+                            "4B": 20,
+                            "4C": 19,
+                            "5A": 19,
+                            "5B": 19,
+                            "5C": 19,
+                            "6A": 19,
+                            "6B": 19,
+                            "7": 19},
+                        "min hour": {
+                            "2A": 14,
+                            "2B": 14,
+                            "3A": 14,
+                            "3B": 14,
+                            "3C": 14,
+                            "4A": 13,
+                            "4B": 14,
+                            "4C": 15,
+                            "5A": 13,
+                            "5B": 14,
+                            "5C": 15,
+                            "6A": 14,
+                            "6B": 15,
+                            "7": 14}
+                    }
+                },
+                "intermediate": {
+                    "hour ranges": {
+                        "peak": {
+                            "2A": list(range(17, 20)),
+                            "2B": list(range(16, 19)),
+                            "3A": list(range(18, 21)),
+                            "3B": list(range(18, 21)),
+                            "3C": list(range(17, 20)),
+                            "4A": list(range(17, 20)),
+                            "4B": list(range(16, 19)),
+                            "4C": list(range(16, 19)),
+                            "5A": list(range(17, 20)),
+                            "5B": list(range(16, 19)),
+                            "5C": list(range(16, 19)),
+                            "6A": list(range(16, 19)),
+                            "6B": list(range(16, 19)),
+                            "7": list(range(16, 19))},
+                        "take": {
+                            "2A": list(range(12, 16)),
+                            "2B": list(range(4, 7)),
+                            "3A": list(range(4, 7)),
+                            "3B": list(range(4, 7)),
+                            "3C": list(range(12, 15)),
+                            "4A": list(range(4, 7)),
+                            "4B": list(range(4, 7)),
+                            "4C": list(range(2, 5)),
+                            "5A": list(range(4, 7)),
+                            "5B": list(range(3, 6)),
+                            "5C": list(range(2, 5)),
+                            "6A": list(range(4, 7)),
+                            "6B": list(range(2, 5)),
+                            "7": list(range(4, 7))}},
+                    "peak day": {
+                        "day of year": {
+                            "2A": 122,
+                            "2B": 101,
+                            "3A": 122,
+                            "3B": 108,
+                            "3C": 101,
+                            "4A": 115,
+                            "4B": 115,
+                            "4C": 143,
+                            "5A": 73,
+                            "5B": 122,
+                            "5C": 108,
+                            "6A": 122,
+                            "6B": 143,
+                            "7": 122},
+                        "max hour": {
+                            "2A": 19,
+                            "2B": 17,
+                            "3A": 19,
+                            "3B": 19,
+                            "3C": 21,
+                            "4A": 18,
+                            "4B": 17,
+                            "4C": 18,
+                            "5A": 18,
+                            "5B": 17,
+                            "5C": 18,
+                            "6A": 17,
+                            "6B": 18,
+                            "7": 17},
+                        "min hour": {
+                            "2A": 14,
+                            "2B": 6,
+                            "3A": 4,
+                            "3B": 6,
+                            "3C": 13,
+                            "4A": 5,
+                            "4B": 6,
+                            "4C": 4,
+                            "5A": 5,
+                            "5B": 4,
+                            "5C": 4,
+                            "6A": 5,
+                            "6B": 4,
+                            "7": 5}
+                    }
+                }
+            },
+            "hourly index": list(enumerate(
+                itertools.product(range(365), range(24))))
+        }
         cls.sample_ash_czone_wts = handyvars.ash_emm_map
         cls.sample_mskeys = (
           "primary", "FRCC", "large office", "electricity",
@@ -26325,8 +26578,6 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
             ['2', '2', '1', '2'],
             ['1', '2', '1', '1'],
             ['1', '2', '1', '2'],
-            ['1', '1', '0', '1'],
-            ['1', '1', '0', '2'],
             ['2', '3', '1', '1'],
             ['2', '3', '1', '2'],
             ['1', '3', '1', '1'],
@@ -26502,42 +26753,16 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
             }},
             {
             "energy": {
-               "baseline": 1.000000000,
-               "efficient": 1.000000000
+               "baseline": 0.00004200983163,
+               "efficient": 0.00004200983163
             },
             "cost": {
-               "baseline": 1.183367941,
-               "efficient": 1.183367941
+               "baseline": 0.00006739754574,
+               "efficient": 0.00006739754574
             },
             "carbon": {
-               "baseline": 0.975289808,
-               "efficient": 0.975289808
-            }},
-            {
-            "energy": {
-               "baseline": 0.002739726027,
-               "efficient": 0.002739726027
-            },
-            "cost": {
-               "baseline": 0.003242103948,
-               "efficient": 0.003242103948
-            },
-            "carbon": {
-               "baseline": 0.002672026872,
-               "efficient": 0.002672026872
-            }},
-            {
-            "energy": {
-               "baseline": 0.00007543730405,
-               "efficient": 0.00007543730405
-            },
-            "cost": {
-               "baseline": 0.000121026173,
-               "efficient": 0.000121026173
-            },
-            "carbon": {
-               "baseline": 0.00007540089971,
-               "efficient": 0.00007540089971
+               "baseline": 0.00004198955863,
+               "efficient": 0.00004198955863
             }},
             {
             "energy": {
@@ -26577,7 +26802,8 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
             "carbon": {
                "baseline": 0.00002089339426,
                "efficient": 0.00002089339426
-            }}]
+            }}
+            ]
 
     def test_load_modification(self):
         """Test 'gen_tsv_facts' and nested 'apply_tsv' given valid inputs."""
@@ -27605,15 +27831,13 @@ class FillParametersTest(unittest.TestCase, CommonMethods):
              'LED Integrated Luminaire', 'LED PAR38', 'Mercury Vapor',
              'Metal Halide', 'Sodium Vapor', 'T5 4xF54 HO High Bay',
              'T5 F28', 'T8 F28', 'T8 F32', 'T8 F59', 'T8 F96',
-             'Range, Electric, 4 burner, oven, 11-inch gr',
-             'Range, Electric-induction, 4 burner, oven',
+             'electric_range_oven_24x24_griddle',
              'gas_eng-driven_RTAC', 'gas_chiller',
              'res_type_gasHP-cool',
              'gas_eng-driven_RTHP-cool',
              'gas_water_heater', 'gas_instantaneous_WH',
              'gas_booster_WH',
-             'Range, Gas, 4 burner, oven, 11-inch griddle',
-             'Range, Gas, 4 powered burners, convect. ove',
+             'gas_range_oven_24x24_griddle',
              'gas_eng-driven_RTHP-heat',
              'res_type_gasHP-heat', 'gas_boiler',
              'gas_furnace', 'oil_water_heater',
@@ -27697,15 +27921,13 @@ class FillParametersTest(unittest.TestCase, CommonMethods):
              'LED Integrated Luminaire', 'LED PAR38', 'Mercury Vapor',
              'Metal Halide', 'Sodium Vapor',
              'T5 4xF54 HO High Bay', 'T5 F28', 'T8 F28', 'T8 F32', 'T8 F59',
-             'T8 F96', 'Range, Electric, 4 burner, oven, 11-inch gr',
-             'Range, Electric-induction, 4 burner, oven',
+             'T8 F96', 'electric_range_oven_24x24_griddle',
              'gas_eng-driven_RTAC', 'gas_chiller',
              'res_type_gasHP-cool',
              'gas_eng-driven_RTHP-cool',
              'gas_water_heater', 'gas_instantaneous_WH',
              'gas_booster_WH',
-             'Range, Gas, 4 burner, oven, 11-inch griddle',
-             'Range, Gas, 4 powered burners, convect. ove',
+             'gas_range_oven_24x24_griddle',
              'gas_eng-driven_RTHP-heat',
              'res_type_gasHP-heat', 'gas_boiler',
              'gas_furnace', 'oil_water_heater',
@@ -28472,13 +28694,11 @@ class AppendKeyValsTest(unittest.TestCase):
             'LED Integrated Luminaire', 'LED PAR38', 'Mercury Vapor',
             'Metal Halide', 'Sodium Vapor',
             'T5 4xF54 HO High Bay', 'T5 F28', 'T8 F28', 'T8 F32', 'T8 F59',
-            'T8 F96', 'Range, Electric, 4 burner, oven, 11-inch gr',
-            'Range, Electric-induction, 4 burner, oven',
+            'T8 F96', 'electric_range_oven_24x24_griddle',
             'gas_eng-driven_RTAC', 'gas_chiller', 'res_type_gasHP-cool',
             'gas_eng-driven_RTHP-cool', 'gas_water_heater',
             'gas_instantaneous_WH', 'gas_booster_WH',
-            'Range, Gas, 4 burner, oven, 11-inch griddle',
-            'Range, Gas, 4 powered burners, convect. ove',
+            'gas_range_oven_24x24_griddle',
             'gas_eng-driven_RTHP-heat', 'res_type_gasHP-heat',
             'gas_boiler', 'gas_furnace', 'oil_water_heater', 'oil_boiler',
             'oil_furnace', 'new', 'existing', 'supply', 'demand',
@@ -29116,6 +29336,259 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
             cls.base_dir, cls.handyfiles_aia, regions="AIA")
         cls.handyvars_emm = ecm_prep.UsefulVars(
             cls.base_dir, cls.handyfiles_emm, regions="EMM")
+        cls.handyvars_emm.tsv_metrics_data = {
+            "season days": {
+                "summer": list(range(151, 273)),
+                "winter": (list(
+                    range(1, 59)) + list(range(334, 365))),
+                "intermediate": (list(
+                    range(59, 151)) + list(range(273, 334)))
+            },
+            "peak_take data": {
+                "summer": {
+                    "hour ranges": {
+                        "peak": {
+                            "2A": list(range(17, 21)),
+                            "2B": list(range(16, 19)),
+                            "3A": list(range(18, 21)),
+                            "3B": list(range(18, 21)),
+                            "3C": list(range(17, 20)),
+                            "4A": list(range(17, 20)),
+                            "4B": list(range(16, 19)),
+                            "4C": list(range(16, 19)),
+                            "5A": list(range(17, 20)),
+                            "5B": list(range(16, 19)),
+                            "5C": list(range(16, 19)),
+                            "6A": list(range(16, 19)),
+                            "6B": list(range(16, 19)),
+                            "7": list(range(16, 19))},
+                        "take": {
+                            "2A": list(range(12, 16)),
+                            "2B": list(range(4, 7)),
+                            "3A": list(range(4, 7)),
+                            "3B": list(range(4, 7)),
+                            "3C": list(range(12, 15)),
+                            "4A": list(range(4, 7)),
+                            "4B": list(range(4, 7)),
+                            "4C": list(range(2, 5)),
+                            "5A": list(range(4, 7)),
+                            "5B": list(range(3, 6)),
+                            "5C": list(range(2, 5)),
+                            "6A": list(range(4, 7)),
+                            "6B": list(range(2, 5)),
+                            "7": list(range(4, 7))}},
+                    "peak day": {
+                        "day of year": {
+                            "2A": 270,
+                            "2B": 186,
+                            "3A": 192,
+                            "3B": 171,
+                            "3C": 220,
+                            "4A": 192,
+                            "4B": 206,
+                            "4C": 241,
+                            "5A": 199,
+                            "5B": 178,
+                            "5C": 206,
+                            "6A": 186,
+                            "6B": 220,
+                            "7": 206},
+                        "max hour": {
+                            "2A": 20,
+                            "2B": 17,
+                            "3A": 19,
+                            "3B": 19,
+                            "3C": 21,
+                            "4A": 18,
+                            "4B": 17,
+                            "4C": 18,
+                            "5A": 18,
+                            "5B": 17,
+                            "5C": 18,
+                            "6A": 17,
+                            "6B": 18,
+                            "7": 17},
+                        "min hour": {
+                            "2A": 14,
+                            "2B": 6,
+                            "3A": 4,
+                            "3B": 6,
+                            "3C": 13,
+                            "4A": 5,
+                            "4B": 6,
+                            "4C": 4,
+                            "5A": 5,
+                            "5B": 4,
+                            "5C": 4,
+                            "6A": 5,
+                            "6B": 4,
+                            "7": 5}
+                    }
+                },
+                "winter": {
+                    "hour ranges": {
+                        "peak": {
+                            "2A": list(range(17, 20)),
+                            "2B": list(range(17, 20)),
+                            "3A": list(range(17, 20)),
+                            "3B": list(range(18, 21)),
+                            "3C": list(range(17, 20)),
+                            "4A": list(range(17, 20)),
+                            "4B": list(range(17, 20)),
+                            "4C": list(range(17, 20)),
+                            "5A": list(range(17, 20)),
+                            "5B": list(range(17, 20)),
+                            "5C": list(range(18, 21)),
+                            "6A": list(range(19, 22)),
+                            "6B": list(range(17, 20)),
+                            "7": list(range(19, 22))},
+                        "take": {
+                            "2A": list(range(13, 16)),
+                            "2B": list(range(13, 16)),
+                            "3A": list(range(13, 16)),
+                            "3B": list(range(13, 16)),
+                            "3C": list(range(12, 15)),
+                            "4A": list(range(11, 14)),
+                            "4B": list(range(11, 14)),
+                            "4C": list(range(12, 15)),
+                            "5A": list(range(11, 14)),
+                            "5B": list(range(12, 15)),
+                            "5C": list(range(12, 15)),
+                            "6A": list(range(3, 6)),
+                            "6B": list(range(12, 15)),
+                            "7": list(range(3, 6))}},
+                    "peak day": {
+                        "day of year": {
+                            "2A": 24,
+                            "2B": 17,
+                            "3A": 31,
+                            "3B": 10,
+                            "3C": 10,
+                            "4A": 31,
+                            "4B": 339,
+                            "4C": 38,
+                            "5A": 26,
+                            "5B": 10,
+                            "5C": 12,
+                            "6A": 10,
+                            "6B": 17,
+                            "7": 31},
+                        "max hour": {
+                            "2A": 20,
+                            "2B": 20,
+                            "3A": 19,
+                            "3B": 20,
+                            "3C": 19,
+                            "4A": 19,
+                            "4B": 20,
+                            "4C": 19,
+                            "5A": 19,
+                            "5B": 19,
+                            "5C": 19,
+                            "6A": 19,
+                            "6B": 19,
+                            "7": 19},
+                        "min hour": {
+                            "2A": 14,
+                            "2B": 14,
+                            "3A": 14,
+                            "3B": 14,
+                            "3C": 14,
+                            "4A": 13,
+                            "4B": 14,
+                            "4C": 15,
+                            "5A": 13,
+                            "5B": 14,
+                            "5C": 15,
+                            "6A": 14,
+                            "6B": 15,
+                            "7": 14}
+                    }
+                },
+                "intermediate": {
+                    "hour ranges": {
+                        "peak": {
+                            "2A": list(range(17, 20)),
+                            "2B": list(range(16, 19)),
+                            "3A": list(range(18, 21)),
+                            "3B": list(range(18, 21)),
+                            "3C": list(range(17, 20)),
+                            "4A": list(range(17, 20)),
+                            "4B": list(range(16, 19)),
+                            "4C": list(range(16, 19)),
+                            "5A": list(range(17, 20)),
+                            "5B": list(range(16, 19)),
+                            "5C": list(range(16, 19)),
+                            "6A": list(range(16, 19)),
+                            "6B": list(range(16, 19)),
+                            "7": list(range(16, 19))},
+                        "take": {
+                            "2A": list(range(12, 16)),
+                            "2B": list(range(4, 7)),
+                            "3A": list(range(4, 7)),
+                            "3B": list(range(4, 7)),
+                            "3C": list(range(12, 15)),
+                            "4A": list(range(4, 7)),
+                            "4B": list(range(4, 7)),
+                            "4C": list(range(2, 5)),
+                            "5A": list(range(4, 7)),
+                            "5B": list(range(3, 6)),
+                            "5C": list(range(2, 5)),
+                            "6A": list(range(4, 7)),
+                            "6B": list(range(2, 5)),
+                            "7": list(range(4, 7))}},
+                    "peak day": {
+                        "day of year": {
+                            "2A": 122,
+                            "2B": 101,
+                            "3A": 122,
+                            "3B": 108,
+                            "3C": 101,
+                            "4A": 115,
+                            "4B": 115,
+                            "4C": 143,
+                            "5A": 73,
+                            "5B": 122,
+                            "5C": 108,
+                            "6A": 122,
+                            "6B": 143,
+                            "7": 122},
+                        "max hour": {
+                            "2A": 19,
+                            "2B": 17,
+                            "3A": 19,
+                            "3B": 19,
+                            "3C": 21,
+                            "4A": 18,
+                            "4B": 17,
+                            "4C": 18,
+                            "5A": 18,
+                            "5B": 17,
+                            "5C": 18,
+                            "6A": 17,
+                            "6B": 18,
+                            "7": 17},
+                        "min hour": {
+                            "2A": 14,
+                            "2B": 6,
+                            "3A": 4,
+                            "3B": 6,
+                            "3C": 13,
+                            "4A": 5,
+                            "4B": 6,
+                            "4C": 4,
+                            "5A": 5,
+                            "5B": 4,
+                            "5C": 4,
+                            "6A": 5,
+                            "6B": 4,
+                            "7": 5}
+                    }
+                }
+            },
+            "hourly index": list(enumerate(
+                itertools.product(range(365), range(24))))
+        }
         # Hard code aeo_years to fit test years
         cls.handyvars_aia.aeo_years, \
             cls.handyvars_emm.aeo_years = (["2009", "2010"] for n in range(2))
