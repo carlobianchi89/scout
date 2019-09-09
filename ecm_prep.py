@@ -676,13 +676,26 @@ class UsefulVars(object):
             "4C", "5A", "5B", "5C", "6A", "6B", "7"]
         self.tsv_nerc_regions = [
             "FRCC", "MRO", "NPCC", "RFC", "SERC", "SPP", "TRE", "WECC"]
+        # Develop weekend day flags
+        wknd_day_flags = [0 for n in range(365)]
+        current_wkdy = 1
+        for d in range(365):
+            # Flag weekend day
+            if current_wkdy in [1, 7]:
+                wknd_day_flags[d] = 1
+            # Advance day of week by one unless Saturday (7), in which
+            # case day switches back to 1 (Sunday)
+            if current_wkdy <= 6:
+                current_wkdy += 1
+            else:
+                current_wkdy = 1
         self.tsv_metrics_data = {
             "season days": {
-                "summer": list(range(151, 273)),
+                "summer": list(range(152, 274)),
                 "winter": (list(
-                    range(1, 59)) + list(range(334, 365))),
+                    range(1, 60)) + list(range(335, 366))),
                 "intermediate": (list(
-                    range(59, 151)) + list(range(273, 334)))
+                    range(60, 152)) + list(range(274, 335)))
             },
             "peak_take data": {
                 "summer": {
@@ -927,7 +940,8 @@ class UsefulVars(object):
                 }
             },
             "hourly index": list(enumerate(
-                itertools.product(range(365), range(24))))
+                itertools.product(range(365), range(24)))),
+            "weekend flags": wknd_day_flags
         }
         self.tsv_hourly_price = {
             reg: {
@@ -3445,13 +3459,13 @@ class Measure(object):
                 for d in range(month_days):
                     # Assign cost data based on month/day type (weekday,
                     # weekend)
-                    if current_wkdy in [6, 7]:
+                    if current_wkdy in [1, 7]:
                         day_cost_info = cost_fact[mo]["weekend"]
                     else:
                         day_cost_info = cost_fact[mo]["weekday"]
                     cost_fact_hourly[
                         current_ind: (current_ind + 24)] = day_cost_info
-                    # Advance weekday by one unless Saturday (7), in which
+                    # Advance day of week by one unless Saturday (7), in which
                     # case day switches back to 1 (Sunday)
                     if current_wkdy <= 6:
                         current_wkdy += 1
@@ -3501,7 +3515,7 @@ class Measure(object):
                     day_carbon_info = emissions_fact[season_key]
                     carbon_fact_hourly[
                         current_ind: (current_ind + 24)] = day_carbon_info
-                    # Advance weekday by one unless Saturday (7), in which
+                    # Advance day of week by one unless Saturday (7), in which
                     # case day switches back to 1 (Sunday)
                     if current_wkdy <= 6:
                         current_wkdy += 1
@@ -3908,21 +3922,25 @@ class Measure(object):
                             # savings shape is zero elements, notify the
                             # user that no savings shape data were found for
                             # the current climate/building/end use
-                            # combination. If the savings shape is less than
+                            # combination and that the savings will be assumed
+                            # to be zero. If the savings shape is less than
                             # or greater than 8760 elements, notify the user
                             # that something else is wrong with their data
                             if len(custom_hr_save_shape) == 0:
-                                raise ValueError(
+                                verboseprint(
                                     "Measure '" + self.name + "', requires "
                                     "custom savings shape data, but none were"
                                     "found for the combination of climate "
                                     "zone " + cz[0] + ", building type "
                                     + load_fact_bldg_key + ", and end use " +
-                                    eu + ". Check that 8760 hourly savings " +
-                                    "fractions are available for all " +
-                                    "baseline market segments the measure " +
-                                    "applies to in ./ecm_definitions/"
+                                    eu + ". Assuming savings are zero for "
+                                    " this combination. If this is "
+                                    "unexpected, check that 8760 hourly "
+                                    "savings fractions are available for "
+                                    "all baseline market segments the "
+                                    "measure applies to in ./ecm_definitions/"
                                     "energy_plus_data/savings_shapes.")
+                                continue
                             elif len(custom_hr_save_shape) != 8760:
                                 raise ValueError(
                                     "Measure '" + self.name + "', requires "
@@ -3999,10 +4017,17 @@ class Measure(object):
 
                     # Set applicable day range
 
-                    # Sum or average calc type (spans multiple days)
-                    if calc in ["sum", "avg"]:
+                    # Sum calc (spans multiple days)
+                    if calc == "sum":
                         tsv_metrics_days = self.handyvars.tsv_metrics_data[
                             "season days"][season]
+                    # Avg. calc (spans multiple days, excluding weekends)
+                    elif calc == "avg":
+                        tsv_metrics_days = [
+                            x for x in self.handyvars.tsv_metrics_data[
+                                "season days"][season] if
+                            self.handyvars.tsv_metrics_data[
+                                "weekend flags"][(x - 1)] != 1]
                     # Maximum calc type (pertains only to a peak day)
                     else:
                         tsv_metrics_days = [
@@ -4016,7 +4041,7 @@ class Measure(object):
                     if calc in ["sum", "avg"]:
                         # All hours of the day
                         if hours == "all":
-                            tsv_metrics_hrs = list(range(24))
+                            tsv_metrics_hrs = list(range(1, 25))
                         # Peak hours only
                         elif hours == "peak":
                             tsv_metrics_hrs = \
