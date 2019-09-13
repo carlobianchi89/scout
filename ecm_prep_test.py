@@ -732,7 +732,7 @@ class MarketUpdatesTest(unittest.TestCase, CommonMethods):
     for a series of sample measures.
 
     Attributes:
-        verbose (NoneType): Determines whether to print all user messages.
+        opts (object): Stores user-specified execution options.
         convert_data (dict): ECM cost conversion data.
         tsv_data (dict): Data needed for time-sensitive efficiency valuation.
         sample_mseg_in (dict): Sample baseline microsegment stock/energy.
@@ -7605,6 +7605,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
     valuation of energy efficiency.
 
     Attributes:
+      opts (object): Stores user-specified execution options.
       sample_ash_czone_wts (numpy.ndarray): ASH/IECC -> EMM mapping factors.
       sample_mskeys (tuple): Sample baseline microsegment information.
       sample_bldg_sect (string): Sample baseline microsegment building sector.
@@ -7629,6 +7630,8 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
                                         regions="EMM")
         # Hard code aeo_years to fit test years
         handyvars.aeo_years = ["2009", "2010"]
+        cls.opts = UserOptions(
+            site=None, capt=None, regions=None, rp_persist=None, warnings=None)
         # Develop weekend day flags
         wknd_day_flags = [0 for n in range(365)]
         current_wkdy = 1
@@ -7642,14 +7645,36 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
                 current_wkdy += 1
             else:
                 current_wkdy = 1
+
+        # Develop lists with seasonal day of year ranges, both with and
+        # without weekends
+
+        # Summer days of year
+        sum_days = list(range(151, 273))
+        sum_days_nowknd = [
+            x for x in sum_days if wknd_day_flags[(x - 1)] != 1]
+        # Winter days of year
+        wint_days = (list(
+                    range(1, 59)) + list(range(334, 365)))
+        wint_days_nowknd = [
+            x for x in wint_days if wknd_day_flags[(x - 1)] != 1]
+        # Intermediate days of year
+        inter_days = (list(
+                    range(59, 151)) + list(range(273, 334)))
+        inter_days_nowknd = [
+            x for x in inter_days if wknd_day_flags[(x - 1)] != 1]
+
         # Hard code tsv_metrics_data
         handyvars.tsv_metrics_data = {
             "season days": {
-                "summer": list(range(151, 273)),
-                "winter": (list(
-                    range(1, 59)) + list(range(334, 365))),
-                "intermediate": (list(
-                    range(59, 151)) + list(range(273, 334)))
+                "summer": sum_days,
+                "winter": wint_days,
+                "intermediate": inter_days
+            },
+            "season days no weekend": {
+                "summer": sum_days_nowknd,
+                "winter": wint_days_nowknd,
+                "intermediate": inter_days_nowknd
             },
             "peak_take data": {
                 "summer": {
@@ -7894,8 +7919,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
                 }
             },
             "hourly index": list(enumerate(
-                itertools.product(range(365), range(24)))),
-            "weekend flags": wknd_day_flags
+                itertools.product(range(365), range(24))))
         }
         # Hard code 8760 price data being tested
         handyvars.tsv_hourly_price["FRCC"]["commercial"] = [
@@ -35588,7 +35612,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
             # Generate and test re-weighting factors against expected values
             gen_tsv_facts_out_features = measure.gen_tsv_facts(
               self.sample_tsv_data, self.sample_mskeys, self.sample_bldg_sect,
-              self.sample_cost_convert)
+              self.sample_cost_convert, self.opts)
             self.dict_check(gen_tsv_facts_out_features,
                             self.ok_tsv_facts_out_features[idx])
         # Test for measure with time sensitive valuation metrics
@@ -35596,7 +35620,7 @@ class TimeSensitiveValuationTest(unittest.TestCase, CommonMethods):
             # Generate and test re-weighting factors against expected values
             gen_tsv_facts_out_metrics = measure.gen_tsv_facts(
               self.sample_tsv_data, self.sample_mskeys, self.sample_bldg_sect,
-              self.sample_cost_convert)
+              self.sample_cost_convert, self.opts)
             self.dict_check(gen_tsv_facts_out_metrics,
                             self.ok_tsv_facts_out_metrics[idx])
 
@@ -38125,14 +38149,36 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
                 current_wkdy += 1
             else:
                 current_wkdy = 1
+
+        # Develop lists with seasonal day of year ranges, both with and
+        # without weekends
+
+        # Summer days of year
+        sum_days = list(range(151, 273))
+        sum_days_nowknd = [
+            x for x in sum_days if wknd_day_flags[(x - 1)] != 1]
+        # Winter days of year
+        wint_days = (list(
+                    range(1, 59)) + list(range(334, 365)))
+        wint_days_nowknd = [
+            x for x in wint_days if wknd_day_flags[(x - 1)] != 1]
+        # Intermediate days of year
+        inter_days = (list(
+                    range(59, 151)) + list(range(273, 334)))
+        inter_days_nowknd = [
+            x for x in inter_days if wknd_day_flags[(x - 1)] != 1]
+
         # Hard code tsv_metrics_data
         cls.handyvars_emm.tsv_metrics_data = {
             "season days": {
-                "summer": list(range(151, 273)),
-                "winter": (list(
-                    range(1, 59)) + list(range(334, 365))),
-                "intermediate": (list(
-                    range(59, 151)) + list(range(273, 334)))
+                "summer": sum_days,
+                "winter": wint_days,
+                "intermediate": inter_days
+            },
+            "season days no weekend": {
+                "summer": sum_days_nowknd,
+                "winter": wint_days_nowknd,
+                "intermediate": inter_days_nowknd
             },
             "peak_take data": {
                 "summer": {
@@ -38377,8 +38423,7 @@ class UpdateMeasuresTest(unittest.TestCase, CommonMethods):
                 }
             },
             "hourly index": list(enumerate(
-                itertools.product(range(365), range(24)))),
-            "weekend flags": wknd_day_flags
+                itertools.product(range(365), range(24))))
         }
         # Hard code 8760 price data being tested
         cls.handyvars_emm.tsv_hourly_price["FRCC"]["residential"], \
@@ -73395,6 +73440,8 @@ class CleanUpTest(unittest.TestCase, CommonMethods):
             base_dir, cls.handyfiles, regions="AIA")
         sample_measindiv_dicts = [{
             "name": "cleanup 1",
+            "tsv_features": {
+                "shape": "sample_8760.csv"},
             "market_entry_year": None,
             "market_exit_year": None,
             "measure_type": "full service",
@@ -73402,6 +73449,8 @@ class CleanUpTest(unittest.TestCase, CommonMethods):
                 "primary": None, "secondary": None}},
             {
             "name": "cleanup 2",
+            "tsv_features": {
+                "shape": "sample_8760.csv"},
             "market_entry_year": None,
             "market_exit_year": None,
             "measure_type": "full service",
@@ -73476,11 +73525,11 @@ class CleanUpTest(unittest.TestCase, CommonMethods):
         cls.sample_measlist_out_highlev_keys = [
             ["market_entry_year", "market_exit_year", "markets",
              "name", "out_break_norm", "remove", "retro_rate", 'technology',
-             'technology_type', 'tsv_features',
+             'technology_type',
              'yrs_on_mkt', 'measure_type', 'energy_outputs'],
             ["market_entry_year", "market_exit_year", "markets",
              "name", "out_break_norm", "remove", "retro_rate", 'technology',
-             'technology_type', 'tsv_features',
+             'technology_type',
              'yrs_on_mkt', 'measure_type', 'energy_outputs'],
             ['benefits', 'bldg_type', 'climate_zone', 'end_use', 'fuel_type',
              "technology", "technology_type",

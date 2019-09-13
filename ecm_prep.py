@@ -689,13 +689,35 @@ class UsefulVars(object):
                 current_wkdy += 1
             else:
                 current_wkdy = 1
+
+        # Develop lists with seasonal day of year ranges, both with and
+        # without weekends
+
+        # Summer days of year
+        sum_days = list(range(152, 274))
+        sum_days_nowknd = [
+            x for x in sum_days if wknd_day_flags[(x - 1)] != 1]
+        # Winter days of year
+        wint_days = (list(
+                    range(1, 60)) + list(range(335, 366)))
+        wint_days_nowknd = [
+            x for x in wint_days if wknd_day_flags[(x - 1)] != 1]
+        # Intermediate days of year
+        inter_days = (list(
+                    range(60, 152)) + list(range(274, 335)))
+        inter_days_nowknd = [
+            x for x in inter_days if wknd_day_flags[(x - 1)] != 1]
+
         self.tsv_metrics_data = {
             "season days": {
-                "summer": list(range(152, 274)),
-                "winter": (list(
-                    range(1, 60)) + list(range(335, 366))),
-                "intermediate": (list(
-                    range(60, 152)) + list(range(274, 335)))
+                "summer": sum_days,
+                "winter": wint_days,
+                "intermediate": inter_days
+            },
+            "season days no weekend": {
+                "summer": sum_days_nowknd,
+                "winter": wint_days_nowknd,
+                "intermediate": inter_days_nowknd
             },
             "peak_take data": {
                 "summer": {
@@ -940,8 +962,7 @@ class UsefulVars(object):
                 }
             },
             "hourly index": list(enumerate(
-                itertools.product(range(365), range(24)))),
-            "weekend flags": wknd_day_flags
+                itertools.product(range(365), range(24))))
         }
         self.tsv_hourly_price = {
             reg: {
@@ -1026,13 +1047,13 @@ class EPlusMapDicts(object):
                 "SmallHotel": 0.26,
                 "LargeHotel": 0.74},
             "large office": {
-                "LargeOffice": 0.9,
-                "MediumOffice": 0.1},
+                "LargeOfficeDetailed": 0.9,
+                "MediumOfficeDetailed": 0.1},
             "small office": {
                 "SmallOffice": 0.12,
                 "OutpatientHealthcare": 0.88},
             "mercantile/service": {
-                "RetailStandalone": 0.53,
+                "RetailStandAlone": 0.53,
                 "RetailStripmall": 0.47},
             "warehouse": {
                 "Warehouse": 1},
@@ -1391,7 +1412,103 @@ class Measure(object):
                                 ('End_Use', '<U25'),
                                 ('Baseline_Load', '<f8'),
                                 ('Measure_Load', '<f8'),
-                                ('Relative_Savings', '<f8')])
+                                ('Relative_Savings', '<f8')],
+                            encoding="latin1")
+
+                    # Retrieve custom savings shapes for all applicable
+                    # end use, building type, and climate zone combinations
+                    # and store within a dict for use in 'apply_tsv' function
+
+                    print("Retrieving custom savings shape data for measure "
+                          + self.name + "...", end="", flush=True)
+
+                    # Set shorthand for custom savings shape data
+                    css_dat = self.tsv_features["shape"][
+                        "custom_annual_savings"]
+                    # Initialize dict to use in storing shape data
+                    css_dict = {}
+                    # Find all unique end uses in the shape data
+                    euses = numpy.unique(css_dat["End_Use"])
+
+                    # Loop through all end uses in the data
+                    for eu in euses:
+                        # Handle case where end use names in the data are
+                        # read in with added quotes (e.g., 'heating' comes in
+                        # as '"heating"'). In such cases, use eval() to
+                        # strip the added quotes from the end use name and key
+                        # in the savings shape information by the result
+                        try:
+                            eu_key = eval(eu)
+                        except (NameError, SyntaxError):
+                            eu_key = eu
+                        # Restrict shape data to that of the current end use
+                        css_dat_eu = css_dat[
+                            numpy.in1d(css_dat["End_Use"], eu)]
+                        # Initialize dict under the current end use key
+                        css_dict[eu_key] = {}
+                        # Find all unique building types and climate zones in
+                        # the end-use-restricted shape data
+                        bldg_types = numpy.unique(
+                            css_dat_eu["Building_Type"])
+                        czones = numpy.unique(
+                            css_dat_eu["Climate_Zone"])
+                        # Loop through all building types under the current
+                        # end use
+                        for bd in bldg_types:
+                            # Handle case where building type names in the data
+                            # are read in with added quotes
+                            try:
+                                bd_key = eval(bd)
+                            except (NameError, SyntaxError):
+                                bd_key = bd
+                            # Initialize dict under the current end use and
+                            # building type keys
+                            css_dict[eu_key][bd_key] = {}
+                            # Loop through all climate zones under the current
+                            # end use
+                            for cz in czones:
+                                # Handle case where climate zone names in the
+                                # data are read in with added quotes
+                                try:
+                                    cz_key = eval(cz)
+                                except (NameError, SyntaxError):
+                                    cz_key = cz
+                                # Restrict shape data to that of the current
+                                # end use, building type, and climate zone
+                                # combination, and set the value of the
+                                # shape dict to the 8760 relative savings
+                                # fractions for this combination
+                                css_dict[eu_key][bd_key][cz_key] = \
+                                    css_dat_eu[
+                                        numpy.in1d(css_dat_eu[
+                                            "Building_Type"], bd) &
+                                        numpy.in1d(css_dat_eu[
+                                            "Climate_Zone"], cz)][
+                                        'Relative_Savings']
+                                # Check to ensure that the resultant dict
+                                # value is the expected 8760 elements long; if
+                                # not, throw error
+                                if len(css_dict[
+                                        eu_key][bd_key][cz_key]) != 8760:
+                                    raise ValueError(
+                                        "Measure '" + self.name +
+                                        "', requires "
+                                        "custom savings shape data, but the "
+                                        "custom shape given for climate "
+                                        "zone " + cz_key +
+                                        ", building type "
+                                        + bd_key + ", and end use " + eu_key +
+                                        " has more or less than 8760 values. "
+                                        "Check that 8760 hourly savings " +
+                                        "fractions are available for all " +
+                                        "baseline market segments the " +
+                                        "measure applies to in "
+                                        "./ecm_definitions/energy_plus_data"
+                                        "/savings_shapes.")
+                    # Set custom savings shape information to populated dict
+                    self.tsv_features["shape"]["custom_annual_savings"] = \
+                        css_dict
+                    print("Data import complete")
                 except ValueError as e:
                     raise ValueError(
                         "Error reading in custom savings shape data: " +
@@ -2925,7 +3042,7 @@ class Measure(object):
                             mskeys[0] == "primary" and
                             mskeys[3] == "electricity"))):
                     tsv_scale_fracs = self.gen_tsv_facts(
-                        tsv_data, mskeys, bldg_sect, convert_data)
+                        tsv_data, mskeys, bldg_sect, convert_data, opts)
                 else:
                     tsv_scale_fracs = {
                         "energy": {"baseline": 1, "efficient": 1},
@@ -3307,7 +3424,7 @@ class Measure(object):
         else:
             print(" Success" + bstk_msg + bcpl_msg + bcc_msg + cc_msg)
 
-    def gen_tsv_facts(self, tsv_data, mskeys, bldg_sect, cost_conv):
+    def gen_tsv_facts(self, tsv_data, mskeys, bldg_sect, cost_conv, opts):
         """Set re-weighting factors for time-sensitive efficiency valuation.
 
         Args:
@@ -3315,6 +3432,7 @@ class Measure(object):
             mskeys (tuple): Microsegment information needed to key load shapes.
             bldg_sect (string): Building sector of the current microsegment.
             cost_conv (dict): Conversion factors, EPlus->Scout building types.
+            opts (object): Stores user-specified execution options.
 
         Returns:
             Dict of microsegment-specific energy, cost, and emissions re-
@@ -3421,7 +3539,7 @@ class Measure(object):
             # type and the health care Scout building type)
             if eplus_bldg_wts is None:
                 if mskeys[2] == "other":
-                    eplus_bldg_wts = {"MediumOffice": 1}
+                    eplus_bldg_wts = {"MediumOfficeDetailed": 1}
                 elif mskeys[2] == "health care":
                     eplus_bldg_wts = {"Hospital": 1}
         else:
@@ -3547,12 +3665,13 @@ class Measure(object):
         # totals such that they reflect sub-annual assessment of these totals
         updated_tsv_fracs = self.apply_tsv(
             load_fact, ash_czone_wts, eplus_bldg_wts,
-            cost_fact_hourly, carbon_fact_hourly, mskeys, bldg_sect, eu)
+            cost_fact_hourly, carbon_fact_hourly, mskeys, bldg_sect, eu, opts)
 
         return updated_tsv_fracs
 
     def apply_tsv(self, load_fact, ash_cz_wts, eplus_bldg_wts,
-                  cost_fact_hourly, carbon_fact_hourly, mskeys, bldg_sect, eu):
+                  cost_fact_hourly, carbon_fact_hourly, mskeys, bldg_sect,
+                  eu, opts):
         """Apply time varying efficiency levels to base load profile.
 
         Args:
@@ -3564,6 +3683,7 @@ class Measure(object):
             mskeys (tuple): Microsegment information.
             bldg_sect (str): Building sector flag (residential/commercial).
             eu (str): End use for keying time sensitive load data.
+            opts (object): Stores user-specified execution options.
 
         Returns:
             Dict of microsegment-specific energy, cost, and emissions re-
@@ -3579,6 +3699,51 @@ class Measure(object):
 
         # Create shorthand for measure's time sensitive metrics settings
         tsv_metrics = self.energy_outputs["tsv_metrics"]
+
+        # Set the user-specified time-sensitive valuation features
+        # for the current ECM; handle cases where this parameter is
+        # broken out by EMM region, building type, and/or end use.
+        # If no time sensitive valuation features are given, reflect
+        # this with an empty dict
+
+        if self.tsv_features is not None:
+            # By EMM region, building type, and end use
+            try:
+                tsv_adjustments = self.tsv_features[mskeys[1]][mskeys[2]][
+                    mskeys[4]]
+            # By EMM region and building type
+            except KeyError:
+                try:
+                    tsv_adjustments = self.tsv_features[mskeys[1]][mskeys[2]]
+                # By EMM region and end use
+                except KeyError:
+                    try:
+                        tsv_adjustments = self.tsv_features[mskeys[1]][
+                            mskeys[4]]
+                    # By building type and end use
+                    except KeyError:
+                        try:
+                            tsv_adjustments = self.tsv_features[mskeys[2]][
+                                mskeys[4]]
+                        # By EMM region
+                        except KeyError:
+                            try:
+                                tsv_adjustments = self.tsv_features[mskeys[1]]
+                            # By building type
+                            except KeyError:
+                                try:
+                                    tsv_adjustments = self.tsv_features[
+                                        mskeys[2]]
+                                # By end use
+                                except KeyError:
+                                    try:
+                                        tsv_adjustments = self.tsv_features[
+                                            mskeys[4]]
+                                    # Not broken out by any of these
+                                    except KeyError:
+                                        tsv_adjustments = self.tsv_features
+        else:
+            tsv_adjustments = {}
 
         # Loop through all EPlus building types (which commercial load profiles
         # are broken out by) that map to the current Scout building type
@@ -3622,9 +3787,18 @@ class Measure(object):
                     try:
                         base_load_hourly = load_fact[
                             load_fact_bldg_key]["load shape"][cz[0]]
+                        # If the baseline load shape is broken out by
+                        # climate zone, assume any savings shape information
+                        # will be keyed using the current climate zone
+                        load_fact_climate_key = cz[0]
                     except (KeyError, TypeError):
                         base_load_hourly = load_fact[
                             load_fact_bldg_key]["load shape"]
+                        # If the baseline load shape is not broken out by
+                        # climate zone, assume any savings shape information
+                        # will be keyed using only the first of the climate
+                        # zones modeled in the TSV framework (2A)
+                        load_fact_climate_key = "2A"
                 else:
                     # Set the weighting factor
                     emm_adj_wt = cz[1]
@@ -3635,63 +3809,20 @@ class Measure(object):
                     # climate zone
                     try:
                         base_load_hourly = load_fact[cz[0]]
+                        # If the baseline load shape is broken out by
+                        # climate zone, assume any savings shape information
+                        # will be keyed using the current climate zone
+                        load_fact_climate_key = cz[0]
                     except (KeyError, TypeError):
                         base_load_hourly = load_fact
+                        # If the baseline load shape is not broken out by
+                        # climate zone, assume any savings shape information
+                        # will be keyed using only the first of the climate
+                        # zones modeled in the TSV framework (2A)
+                        load_fact_climate_key = "2A"
 
                 # Initialize efficient load shape as equal to base load
                 eff_load_hourly = base_load_hourly
-
-                # Set the user-specified time-sensitive valuation features
-                # for the current ECM; handle cases where this parameter is
-                # broken out by EMM region, building type, and/or end use.
-                # If no time sensitive valuation features are given, reflect
-                # this with an empty dict
-
-                if self.tsv_features is not None:
-                    # By EMM region, building type, and end use
-                    try:
-                        tsv_adjustments = self.tsv_features[
-                            mskeys[1]][mskeys[2]][mskeys[4]]
-                    # By EMM region and building type
-                    except KeyError:
-                        try:
-                            tsv_adjustments = self.tsv_features[
-                                mskeys[1]][mskeys[2]]
-                        # By EMM region and end use
-                        except KeyError:
-                            try:
-                                tsv_adjustments = self.tsv_features[
-                                    mskeys[1]][mskeys[4]]
-                            # By building type and end use
-                            except KeyError:
-                                try:
-                                    tsv_adjustments = \
-                                        self.tsv_features[
-                                            mskeys[2]][mskeys[4]]
-                                # By EMM region
-                                except KeyError:
-                                    try:
-                                        tsv_adjustments = \
-                                            self.tsv_features[
-                                                mskeys[1]]
-                                    # By building type
-                                    except KeyError:
-                                        try:
-                                            tsv_adjustments = \
-                                                self.tsv_features[
-                                                    mskeys[2]]
-                                        # By end use
-                                        except KeyError:
-                                            try:
-                                                tsv_adjustments = \
-                                                    self.tsv_features[
-                                                        mskeys[4]]
-                                            # Not broken out by any of these
-                                            except KeyError:
-                                                tsv_adjustments = \
-                                                    self.tsv_features
-                else:
-                    tsv_adjustments = {}
 
                 # Loop through all time-varying efficiency features in sorted
                 # order, applying each successively to the base load shape
@@ -3888,50 +4019,43 @@ class Measure(object):
                         elif "custom_annual_savings" in \
                             tsv_adjustments[a].keys() and tsv_adjustments[a][
                                 "custom_annual_savings"] is not None:
-                            # Set the custom 8760 savings shape data, which
-                            # should be in numpy array format and span all the
-                            # climate zones, building types, and end uses
-                            # covered by the current measure
-                            custom_hr_save_shape = \
-                                tsv_adjustments[a]["custom_annual_savings"]
-                            # Key in the savings shape data by the current
-                            # combination of climate zone, building type,
-                            # and end use. In the residential sector, savings
-                            # shape will only be available for a single
-                            # building type (single family homes); therefore,
-                            # do not key in by building type
+                            # Set the custom 8760 savings shape data, which are
+                            # stored in a dict initialized with the measure
+                            # from a CSV, where the dict will be keyed in by
+                            # the current combination of end use, building
+                            # type, and climate zone to yield the 8760 shape
                             if bldg_sect == "commercial":
-                                custom_hr_save_shape = custom_hr_save_shape[
-                                    numpy.in1d(custom_hr_save_shape[
-                                        "Climate_Zone"], cz[0]) &
-                                    numpy.in1d(custom_hr_save_shape[
-                                        "Building_Type"], load_fact_bldg_key) &
-                                    numpy.in1d(custom_hr_save_shape[
-                                        "End_Use"], eu)]['Relative_Savings']
+                                try:
+                                    custom_hr_save_shape = tsv_adjustments[a][
+                                        "custom_annual_savings"][eu][
+                                        load_fact_bldg_key][
+                                        load_fact_climate_key]
+                                except KeyError:
+                                    custom_hr_save_shape = []
                             else:
-                                custom_hr_save_shape = custom_hr_save_shape[
-                                    numpy.in1d(custom_hr_save_shape[
-                                        "Climate_Zone"], cz[0]) &
-                                    numpy.in1d(custom_hr_save_shape[
-                                        "End_Use"], eu)]['Relative_Savings']
+                                try:
+                                    custom_hr_save_shape = tsv_adjustments[a][
+                                        "custom_annual_savings"][eu][
+                                        load_fact_climate_key]
+                                except KeyError:
+                                    custom_hr_save_shape = []
 
                             # Ensure that the resultant custom savings shape
                             # for the current combination of climate zone,
-                            # building type, and end use is 8760 elements,
-                            # representing 8760 hours of the year. If the
-                            # savings shape is zero elements, notify the
+                            # building type, and end use is not zero elements.
+                            # If the savings shape is zero elements, notify the
                             # user that no savings shape data were found for
                             # the current climate/building/end use
                             # combination and that the savings will be assumed
-                            # to be zero. If the savings shape is less than
-                            # or greater than 8760 elements, notify the user
-                            # that something else is wrong with their data
+                            # to be zero.
                             if len(custom_hr_save_shape) == 0:
                                 verboseprint(
+                                    opts.verbose,
                                     "Measure '" + self.name + "', requires "
                                     "custom savings shape data, but none were"
                                     "found for the combination of climate "
-                                    "zone " + cz[0] + ", building type "
+                                    "zone " + load_fact_climate_key +
+                                    ", building type "
                                     + load_fact_bldg_key + ", and end use " +
                                     eu + ". Assuming savings are zero for "
                                     " this combination. If this is "
@@ -3941,19 +4065,6 @@ class Measure(object):
                                     "measure applies to in ./ecm_definitions/"
                                     "energy_plus_data/savings_shapes.")
                                 continue
-                            elif len(custom_hr_save_shape) != 8760:
-                                raise ValueError(
-                                    "Measure '" + self.name + "', requires "
-                                    "custom savings shape data, but the "
-                                    "custom shape given for climate "
-                                    "zone " + cz[0] + ", building type "
-                                    + load_fact_bldg_key + ", and end use " +
-                                    eu + " has more or less than 8760 values. "
-                                    "Check that 8760 hourly savings " +
-                                    "fractions are available for all " +
-                                    "baseline market segments the measure " +
-                                    "applies to in ./ecm_definitions/"
-                                    "energy_plus_data/savings_shapes.")
                             # Reflect custom load savings in efficient load
                             # shape
                             eff_load_hourly_n = [(
@@ -4023,11 +4134,8 @@ class Measure(object):
                             "season days"][season]
                     # Avg. calc (spans multiple days, excluding weekends)
                     elif calc == "avg":
-                        tsv_metrics_days = [
-                            x for x in self.handyvars.tsv_metrics_data[
-                                "season days"][season] if
-                            self.handyvars.tsv_metrics_data[
-                                "weekend flags"][(x - 1)] != 1]
+                        tsv_metrics_days = self.handyvars.tsv_metrics_data[
+                            "season days no weekend"][season]
                     # Maximum calc type (pertains only to a peak day)
                     else:
                         tsv_metrics_days = [
@@ -6961,6 +7069,10 @@ def split_clean_data(meas_prepped_objs):
         # Delete 'handyvars' measure attribute (not relevant to
         # analysis engine)
         del m.handyvars
+        # Delete 'tsv_features' measure attribute (not relevant) for
+        # individual measures
+        if not isinstance(m, MeasurePackage):
+            del m.tsv_features
         # For measure packages, replace 'contributing_ECMs'
         # objects list with a list of these measures' names
         if isinstance(m, MeasurePackage):
