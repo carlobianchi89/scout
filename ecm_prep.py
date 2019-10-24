@@ -726,32 +726,32 @@ class UsefulVars(object):
                             "2A": list(range(17, 20)),
                             "2B": list(range(16, 19)),
                             "3A": list(range(18, 21)),
-                            "3B": list(range(18, 21)),
+                            "3B": list(range(17, 20)),
                             "3C": list(range(17, 20)),
-                            "4A": list(range(17, 20)),
+                            "4A": list(range(12, 15)),
                             "4B": list(range(16, 19)),
-                            "4C": list(range(16, 19)),
+                            "4C": list(range(15, 18)),
                             "5A": list(range(17, 20)),
-                            "5B": list(range(16, 19)),
-                            "5C": list(range(16, 19)),
-                            "6A": list(range(16, 19)),
-                            "6B": list(range(16, 19)),
-                            "7": list(range(16, 19))},
+                            "5B": list(range(14, 17)),
+                            "5C": list(range(14, 17)),
+                            "6A": list(range(14, 17)),
+                            "6B": list(range(14, 17)),
+                            "7": list(range(14, 17))},
                         "take": {
                             "2A": list(range(13, 16)),
                             "2B": list(range(4, 7)),
                             "3A": list(range(4, 7)),
                             "3B": list(range(4, 7)),
                             "3C": list(range(12, 15)),
-                            "4A": list(range(4, 7)),
+                            "4A": list(range(3, 6)),
                             "4B": list(range(4, 7)),
                             "4C": list(range(2, 5)),
-                            "5A": list(range(4, 7)),
+                            "5A": list(range(3, 6)),
                             "5B": list(range(3, 6)),
                             "5C": list(range(2, 5)),
-                            "6A": list(range(4, 7)),
+                            "6A": list(range(3, 6)),
                             "6B": list(range(2, 5)),
-                            "7": list(range(4, 7))}},
+                            "7": list(range(3, 6))}},
                     "peak day": {
                         "day of year": {
                             "2A": 199,
@@ -773,15 +773,15 @@ class UsefulVars(object):
                             "2B": 17,
                             "3A": 19,
                             "3B": 19,
-                            "3C": 21,
-                            "4A": 18,
+                            "3C": 20,
+                            "4A": 14,
                             "4B": 17,
-                            "4C": 18,
+                            "4C": 17,
                             "5A": 18,
                             "5B": 17,
-                            "5C": 18,
+                            "5C": 17,
                             "6A": 17,
-                            "6B": 18,
+                            "6B": 17,
                             "7": 17},
                         "min hour": {
                             "2A": 14,
@@ -813,17 +813,17 @@ class UsefulVars(object):
                             "4C": list(range(17, 20)),
                             "5A": list(range(17, 20)),
                             "5B": list(range(17, 20)),
-                            "5C": list(range(18, 21)),
-                            "6A": list(range(19, 22)),
+                            "5C": list(range(17, 20)),
+                            "6A": list(range(17, 20)),
                             "6B": list(range(17, 20)),
-                            "7": list(range(19, 22))},
+                            "7": list(range(17, 20))},
                         "take": {
                             "2A": list(range(13, 16)),
                             "2B": list(range(13, 16)),
                             "3A": list(range(13, 16)),
                             "3B": list(range(13, 16)),
                             "3C": list(range(12, 15)),
-                            "4A": list(range(11, 14)),
+                            "4A": list(range(3, 6)),
                             "4B": list(range(11, 14)),
                             "4C": list(range(12, 15)),
                             "5A": list(range(11, 14)),
@@ -854,7 +854,7 @@ class UsefulVars(object):
                             "3A": 19,
                             "3B": 20,
                             "3C": 19,
-                            "4A": 19,
+                            "4A": 18,
                             "4B": 20,
                             "4C": 19,
                             "5A": 19,
@@ -869,7 +869,7 @@ class UsefulVars(object):
                             "3A": 14,
                             "3B": 14,
                             "3C": 14,
-                            "4A": 13,
+                            "4A": 5,
                             "4B": 14,
                             "4C": 15,
                             "5A": 13,
@@ -886,32 +886,32 @@ class UsefulVars(object):
                             "2A": list(range(17, 20)),
                             "2B": list(range(16, 19)),
                             "3A": list(range(18, 21)),
-                            "3B": list(range(18, 21)),
+                            "3B": list(range(17, 20)),
                             "3C": list(range(17, 20)),
-                            "4A": list(range(17, 20)),
+                            "4A": list(range(12, 15)),
                             "4B": list(range(16, 19)),
-                            "4C": list(range(16, 19)),
+                            "4C": list(range(15, 18)),
                             "5A": list(range(17, 20)),
-                            "5B": list(range(16, 19)),
-                            "5C": list(range(16, 19)),
-                            "6A": list(range(16, 19)),
-                            "6B": list(range(16, 19)),
-                            "7": list(range(16, 19))},
+                            "5B": list(range(14, 17)),
+                            "5C": list(range(14, 17)),
+                            "6A": list(range(14, 17)),
+                            "6B": list(range(14, 17)),
+                            "7": list(range(14, 17))},
                         "take": {
-                            "2A": list(range(12, 16)),
+                            "2A": list(range(13, 16)),
                             "2B": list(range(4, 7)),
                             "3A": list(range(4, 7)),
                             "3B": list(range(4, 7)),
                             "3C": list(range(12, 15)),
-                            "4A": list(range(4, 7)),
+                            "4A": list(range(3, 6)),
                             "4B": list(range(4, 7)),
                             "4C": list(range(2, 5)),
-                            "5A": list(range(4, 7)),
+                            "5A": list(range(3, 6)),
                             "5B": list(range(3, 6)),
                             "5C": list(range(2, 5)),
-                            "6A": list(range(4, 7)),
+                            "6A": list(range(3, 6)),
                             "6B": list(range(2, 5)),
-                            "7": list(range(4, 7))}},
+                            "7": list(range(3, 6))}},
                     "peak day": {
                         "day of year": {
                             "2A": 122,
@@ -933,15 +933,15 @@ class UsefulVars(object):
                             "2B": 17,
                             "3A": 19,
                             "3B": 19,
-                            "3C": 21,
-                            "4A": 18,
+                            "3C": 20,
+                            "4A": 14,
                             "4B": 17,
-                            "4C": 18,
+                            "4C": 17,
                             "5A": 18,
                             "5B": 17,
-                            "5C": 18,
+                            "5C": 17,
                             "6A": 17,
-                            "6B": 18,
+                            "6B": 17,
                             "7": 17},
                         "min hour": {
                             "2A": 14,
@@ -1400,120 +1400,121 @@ class Measure(object):
                 # files, import custom savings shape data as numpy array and
                 # store it in the ECM's custom savings shape attribute for
                 # subsequent use in the 'apply_tsv' function
-                try:
-                    self.tsv_features["shape"]["custom_annual_savings"] = \
-                        numpy.genfromtxt(
-                            path.join(base_dir, *handyfiles.tsv_shape_data,
-                                      csv_shape_file_name),
-                            names=True, delimiter=',', dtype=[
-                                ('Hour_of_Year', '<i4'),
-                                ('Climate_Zone', '<U25'),
-                                ('Building_Type', '<U25'),
-                                ('End_Use', '<U25'),
-                                ('Baseline_Load', '<f8'),
-                                ('Measure_Load', '<f8'),
-                                ('Relative_Savings', '<f8')],
-                            encoding="latin1")
+                self.tsv_features["shape"]["custom_annual_savings"] = \
+                    numpy.genfromtxt(
+                        path.join(base_dir, *handyfiles.tsv_shape_data,
+                                  csv_shape_file_name),
+                        names=True, delimiter=',', dtype=[
+                            ('Hour_of_Year', '<i4'),
+                            ('Climate_Zone', '<U25'),
+                            ('Building_Type', '<U25'),
+                            ('End_Use', '<U25'),
+                            ('Baseline_Load', '<f8'),
+                            ('Measure_Load', '<f8'),
+                            ('Relative_Savings', '<f8')],
+                        encoding="latin1")
 
-                    # Retrieve custom savings shapes for all applicable
-                    # end use, building type, and climate zone combinations
-                    # and store within a dict for use in 'apply_tsv' function
+                # Retrieve custom savings shapes for all applicable
+                # end use, building type, and climate zone combinations
+                # and store within a dict for use in 'apply_tsv' function
 
-                    print("Retrieving custom savings shape data for measure "
-                          + self.name + "...", end="", flush=True)
+                print("Retrieving custom savings shape data for measure "
+                      + self.name + "...", end="", flush=True)
 
-                    # Set shorthand for custom savings shape data
-                    css_dat = self.tsv_features["shape"][
-                        "custom_annual_savings"]
-                    # Initialize dict to use in storing shape data
-                    css_dict = {}
-                    # Find all unique end uses in the shape data
-                    euses = numpy.unique(css_dat["End_Use"])
+                # Set shorthand for custom savings shape data
+                css_dat = self.tsv_features["shape"][
+                    "custom_annual_savings"]
+                # Initialize dict to use in storing shape data
+                css_dict = {}
+                # Find all unique end uses in the shape data
+                euses = numpy.unique(css_dat["End_Use"])
 
-                    # Loop through all end uses in the data
-                    for eu in euses:
-                        # Handle case where end use names in the data are
-                        # read in with added quotes (e.g., 'heating' comes in
-                        # as '"heating"'). In such cases, use eval() to
-                        # strip the added quotes from the end use name and key
-                        # in the savings shape information by the result
+                # Loop through all end uses in the data
+                for eu in euses:
+                    # Handle case where end use names in the data are
+                    # read in with added quotes (e.g., 'heating' comes in
+                    # as '"heating"'), or are not strings. In the first instance,
+                    # use eval() to strip the added quotes from the end use name
+                    # and key in the savings shape information by the result
+                    try:
+                        eu_key = eval(eu)
+                    except (NameError, SyntaxError):
+                        eu_key = eu
+                    if type(eu_key) != str:
+                        eu_key = str(eu_key)
+                    # Restrict shape data to that of the current end use
+                    css_dat_eu = css_dat[
+                        numpy.in1d(css_dat["End_Use"], eu)]
+                    # Initialize dict under the current end use key
+                    css_dict[eu_key] = {}
+                    # Find all unique building types and climate zones in
+                    # the end-use-restricted shape data
+                    bldg_types = numpy.unique(
+                        css_dat_eu["Building_Type"])
+                    czones = numpy.unique(
+                        css_dat_eu["Climate_Zone"])
+                    # Loop through all building types under the current
+                    # end use
+                    for bd in bldg_types:
+                        # Handle case where building type names in the data
+                        # are read in with added quotes, or are not strings
                         try:
-                            eu_key = eval(eu)
+                            bd_key = eval(bd)
                         except (NameError, SyntaxError):
-                            eu_key = eu
-                        # Restrict shape data to that of the current end use
-                        css_dat_eu = css_dat[
-                            numpy.in1d(css_dat["End_Use"], eu)]
-                        # Initialize dict under the current end use key
-                        css_dict[eu_key] = {}
-                        # Find all unique building types and climate zones in
-                        # the end-use-restricted shape data
-                        bldg_types = numpy.unique(
-                            css_dat_eu["Building_Type"])
-                        czones = numpy.unique(
-                            css_dat_eu["Climate_Zone"])
-                        # Loop through all building types under the current
+                            bd_key = bd
+                        if type(bd_key) != str:
+                            bd_key = str(bd_key)
+                        # Initialize dict under the current end use and
+                        # building type keys
+                        css_dict[eu_key][bd_key] = {}
+                        # Loop through all climate zones under the current
                         # end use
-                        for bd in bldg_types:
-                            # Handle case where building type names in the data
-                            # are read in with added quotes
+                        for cz in czones:
+                            # Handle case where climate zone names in the
+                            # data are read in with added quotes, or are not
+                            # strings
                             try:
-                                bd_key = eval(bd)
+                                cz_key = eval(cz)
                             except (NameError, SyntaxError):
-                                bd_key = bd
-                            # Initialize dict under the current end use and
-                            # building type keys
-                            css_dict[eu_key][bd_key] = {}
-                            # Loop through all climate zones under the current
-                            # end use
-                            for cz in czones:
-                                # Handle case where climate zone names in the
-                                # data are read in with added quotes
-                                try:
-                                    cz_key = eval(cz)
-                                except (NameError, SyntaxError):
-                                    cz_key = cz
-                                # Restrict shape data to that of the current
-                                # end use, building type, and climate zone
-                                # combination, and set the value of the
-                                # shape dict to the 8760 relative savings
-                                # fractions for this combination
-                                css_dict[eu_key][bd_key][cz_key] = \
-                                    css_dat_eu[
-                                        numpy.in1d(css_dat_eu[
-                                            "Building_Type"], bd) &
-                                        numpy.in1d(css_dat_eu[
-                                            "Climate_Zone"], cz)][
-                                        'Relative_Savings']
-                                # Check to ensure that the resultant dict
-                                # value is the expected 8760 elements long; if
-                                # not, throw error
-                                if len(css_dict[
-                                        eu_key][bd_key][cz_key]) != 8760:
-                                    raise ValueError(
-                                        "Measure '" + self.name +
-                                        "', requires "
-                                        "custom savings shape data, but the "
-                                        "custom shape given for climate "
-                                        "zone " + cz_key +
-                                        ", building type "
-                                        + bd_key + ", and end use " + eu_key +
-                                        " has more or less than 8760 values. "
-                                        "Check that 8760 hourly savings " +
-                                        "fractions are available for all " +
-                                        "baseline market segments the " +
-                                        "measure applies to in "
-                                        "./ecm_definitions/energy_plus_data"
-                                        "/savings_shapes.")
-                    # Set custom savings shape information to populated dict
-                    self.tsv_features["shape"]["custom_annual_savings"] = \
-                        css_dict
-                    print("Data import complete")
-                except ValueError as e:
-                    raise ValueError(
-                        "Error reading in custom savings shape data: " +
-                        str(e)) from None
-
+                                cz_key = cz
+                            if type(cz_key) != str:
+                                cz_key = str(cz_key)
+                            # Restrict shape data to that of the current
+                            # end use, building type, and climate zone
+                            # combination, and set the value of the
+                            # shape dict to the 8760 relative savings
+                            # fractions for this combination
+                            css_dict[eu_key][bd_key][cz_key] = \
+                                css_dat_eu[
+                                    numpy.in1d(css_dat_eu[
+                                        "Building_Type"], bd) &
+                                    numpy.in1d(css_dat_eu[
+                                        "Climate_Zone"], cz)][
+                                    'Relative_Savings']
+                            # Check to ensure that the resultant dict
+                            # value is the expected 8760 elements long; if
+                            # not, throw error
+                            if len(css_dict[
+                                    eu_key][bd_key][cz_key]) != 8760:
+                                raise ValueError(
+                                    "Measure '" + self.name +
+                                    "', requires "
+                                    "custom savings shape data, but the "
+                                    "custom shape given for climate "
+                                    "zone " + cz_key +
+                                    ", building type "
+                                    + bd_key + ", and end use " + eu_key +
+                                    " has more or less than 8760 values. "
+                                    "Check that 8760 hourly savings " +
+                                    "fractions are available for all " +
+                                    "baseline market segments the " +
+                                    "measure applies to in "
+                                    "./ecm_definitions/energy_plus_data"
+                                    "/savings_shapes.")
+                # Set custom savings shape information to populated dict
+                self.tsv_features["shape"]["custom_annual_savings"] = \
+                    css_dict
+                print("Data import complete")
             except KeyError:
                 pass
         except AttributeError:
@@ -3447,10 +3448,17 @@ class Measure(object):
         if mskeys[0] == "primary":
             # First, assume there is a load shape for the current end use
             try:
-                # Set load data end use key for later use in 'apply_tsv'
-                eu = mskeys[4]
-                # Key in the appropriate load shape data
-                load_fact = tsv_data["load"][bldg_sect][eu]
+                # Do not assign the "other" load shape directly to the "other"
+                # end use in Scout, as this end use has sub-categories (e.g.,
+                # dishwashing, pool pumps/heaters, etc.) that should be used
+                # to key in the appropriate load shape information
+                if mskeys[4] == "other":
+                    raise(KeyError)
+                else:
+                    # Set load data end use key for later use in 'apply_tsv'
+                    eu = mskeys[4]
+                    # Key in the appropriate load shape data
+                    load_fact = tsv_data["load"][bldg_sect][eu]
             except KeyError:
                 # If there is no load shape for the current end use, handle
                 # the resultant error differently for residential/commercial
@@ -3757,7 +3765,7 @@ class Measure(object):
                         "represented building types"] or load_fact[x][
                         "represented building types"] == "all")][0]
             else:
-                load_fact_bldg_key = "Single Family Home"
+                load_fact_bldg_key = "SFD Home"
 
             # Ensure that all applicable ASHRAE climate zones are represented
             # in the keys for time sensitive metrics data; if a zone is not
@@ -4024,21 +4032,13 @@ class Measure(object):
                             # from a CSV, where the dict will be keyed in by
                             # the current combination of end use, building
                             # type, and climate zone to yield the 8760 shape
-                            if bldg_sect == "commercial":
-                                try:
-                                    custom_hr_save_shape = tsv_adjustments[a][
-                                        "custom_annual_savings"][eu][
-                                        load_fact_bldg_key][
-                                        load_fact_climate_key]
-                                except KeyError:
-                                    custom_hr_save_shape = []
-                            else:
-                                try:
-                                    custom_hr_save_shape = tsv_adjustments[a][
-                                        "custom_annual_savings"][eu][
-                                        load_fact_climate_key]
-                                except KeyError:
-                                    custom_hr_save_shape = []
+                            try:
+                                custom_hr_save_shape = tsv_adjustments[a][
+                                    "custom_annual_savings"][eu][
+                                    load_fact_bldg_key][
+                                    load_fact_climate_key]
+                            except KeyError:
+                                custom_hr_save_shape = []
 
                             # Ensure that the resultant custom savings shape
                             # for the current combination of climate zone,
@@ -4049,8 +4049,7 @@ class Measure(object):
                             # combination and that the savings will be assumed
                             # to be zero.
                             if len(custom_hr_save_shape) == 0:
-                                verboseprint(
-                                    opts.verbose,
+                                raise ValueError(
                                     "Measure '" + self.name + "', requires "
                                     "custom savings shape data, but none were"
                                     "found for the combination of climate "
@@ -4064,12 +4063,13 @@ class Measure(object):
                                     "all baseline market segments the "
                                     "measure applies to in ./ecm_definitions/"
                                     "energy_plus_data/savings_shapes.")
-                                continue
                             # Reflect custom load savings in efficient load
-                            # shape
+                            # shape; screen for NaNs in the CSV
                             eff_load_hourly_n = [(
                                 base_load_hourly[x] +
-                                custom_hr_save_shape[x]) for x in range(8760)]
+                                custom_hr_save_shape[x]) if not
+                                numpy.isnan(custom_hr_save_shape[x]) else
+                                base_load_hourly[x] for x in range(8760)]
                         else:
                             # Throw an error if the load reshaping operation
                             # name is invalid
