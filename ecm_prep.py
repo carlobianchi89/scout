@@ -1392,7 +1392,9 @@ class Measure(object):
                     "restrict the measure's fuel type to electricity.")
             # If the ECM is assigned a custom savings shape, load the
             # associated custom savings shape data from a CSV file
-            try:
+            if "shape" in self.tsv_features.keys() and \
+                "custom_annual_savings" in \
+                    self.tsv_features["shape"].keys():
                 # Determine the CSV file name
                 csv_shape_file_name = \
                     self.tsv_features["shape"]["custom_annual_savings"]
@@ -1433,9 +1435,10 @@ class Measure(object):
                 for eu in euses:
                     # Handle case where end use names in the data are
                     # read in with added quotes (e.g., 'heating' comes in
-                    # as '"heating"'), or are not strings. In the first instance,
-                    # use eval() to strip the added quotes from the end use name
-                    # and key in the savings shape information by the result
+                    # as '"heating"'), or are not strings. In the first
+                    # instance, use eval() to strip the added quotes from the
+                    # end use name and key in the savings shape information
+                    # by the result
                     try:
                         eu_key = eval(eu)
                     except (NameError, SyntaxError):
@@ -1515,8 +1518,6 @@ class Measure(object):
                 self.tsv_features["shape"]["custom_annual_savings"] = \
                     css_dict
                 print("Data import complete")
-            except KeyError:
-                pass
         except AttributeError:
             self.tsv_features = None
         # Check to ensure that the proper EMM regions are defined in the
@@ -3855,17 +3856,6 @@ class Measure(object):
                     except (TypeError, KeyError):
                         applicable_days = range(365)
 
-                    # If the time-varying impact does not apply across all 365
-                    # days of the year, set the start hour and end hour for
-                    # the impact (within 8760 total annual hours); otherwise
-                    # the start hour is zero and end hour is 8760
-                    if len(applicable_days) != 365:
-                        st_hr = (applicable_days[0] * 24)
-                        end_hr = ((applicable_days[-1] + 1) * 24)
-                    else:
-                        st_hr = 0
-                        end_hr = 365 * 24
-
                     # Set the applicable hours in which to apply the
                     # time-varying efficiency impact; if no start and stop
                     # information is specified by the user, assume the impact
@@ -3896,7 +3886,7 @@ class Measure(object):
                     # Set enumerate object for applicable day/hour ranges
                     enumerate_list = list(
                         enumerate(itertools.product(
-                            applicable_days, range(24))))
+                            range(365), range(24))))
 
                     # Apply time-varying impacts based on type of time-varying
                     # efficiency feature(s) specified for the measure
@@ -3914,9 +3904,10 @@ class Measure(object):
                             rel_save_tsv = 0
                         # Reflect the shed impacts on efficient load shape
                         # across all relevant hours of the year
-                        eff_load_hourly_n = [base_load_hourly[i + st_hr] * (
-                            1 - rel_save_tsv) if y in applicable_hrs else
-                            base_load_hourly[i + st_hr] for
+                        eff_load_hourly = [base_load_hourly[i] * (
+                            1 - rel_save_tsv) if (
+                            x in applicable_days and y in applicable_hrs) else
+                            eff_load_hourly[i] for
                             i, (x, y) in enumerate_list]
                     # "Shift" time-varying efficiency features move a certain
                     # percentage of baseline load from one time period into
@@ -3932,9 +3923,10 @@ class Measure(object):
                             # across all 8760 hours of the year; the initial
                             # efficient load in hour X is now the load in hour
                             # X minus user-specified hour offset
-                            eff_load_hourly_n = [
-                                base_load_hourly[i + st_hr + offset_hrs] if ((
-                                    i + offset_hrs) <= 8759) else
+                            eff_load_hourly = [
+                                base_load_hourly[i + offset_hrs] if ((
+                                    i + offset_hrs) <= 8759 and
+                                    x in applicable_days) else
                                 base_load_hourly[(y + offset_hrs) - 24] for
                                 i, (x, y) in enumerate_list]
                         # If the user has specified a time range for the load
@@ -3971,35 +3963,40 @@ class Measure(object):
                             # user-specified % of load in the user-specified
                             # hour range and move it X hours earlier, where X
                             # is determined by the "offset_hours" parameter
-                            eff_load_hourly_n = [
-                                    (base_load_hourly[i + st_hr] + (
+                            eff_load_hourly = [
+                                    (base_load_hourly[i] + (
                                         base_load_hourly[
-                                            i + st_hr + offset_hrs] *
+                                            i + offset_hrs] *
                                         rel_save_tsv)) if (
-                                        ((i + offset_hrs) <= 8759)
+                                        ((i + offset_hrs) <= 8759 and
+                                         x in applicable_days)
                                         and y in hrs_to_shift_to and
                                         y not in applicable_hrs) else
-                                    (base_load_hourly[i + st_hr] * (
+                                    (base_load_hourly[i] * (
                                       1 - rel_save_tsv) + (base_load_hourly[
-                                        i + st_hr + offset_hrs] *
+                                        i + offset_hrs] *
                                         rel_save_tsv)) if (
-                                        ((i + offset_hrs) <= 8759)
+                                        ((i + offset_hrs) <= 8759 and
+                                         x in applicable_days)
                                         and y in hrs_to_shift_to and
                                         y in applicable_hrs) else
-                                    (base_load_hourly[i + st_hr] +
+                                    (base_load_hourly[i] +
                                      base_load_hourly[
                                         (y + offset_hrs) - 24] * rel_save_tsv)
                                     if (y in hrs_to_shift_to and
-                                        y not in applicable_hrs) else
-                                    (base_load_hourly[i + st_hr] * (
+                                        y not in applicable_hrs and
+                                        x in applicable_days) else
+                                    (base_load_hourly[i] * (
                                         1 - rel_save_tsv) + base_load_hourly[
                                         (y + offset_hrs) - 24] * rel_save_tsv)
                                     if (y in hrs_to_shift_to and
-                                        y in applicable_hrs) else
-                                    base_load_hourly[i + st_hr] * (
-                                        1 - rel_save_tsv) if y in
-                                    applicable_hrs else base_load_hourly[
-                                        i + st_hr] for i, (x, y) in
+                                        y in applicable_hrs and
+                                        x in applicable_days) else
+                                    eff_load_hourly[i] * (
+                                        1 - rel_save_tsv) if (
+                                        y in applicable_hrs and
+                                        x in applicable_days) else
+                                    eff_load_hourly[i] for i, (x, y) in
                                     enumerate_list]
 
                     # "Shape" time-sensitive efficiency features reshape
@@ -4018,10 +4015,13 @@ class Measure(object):
                                 tsv_adjustments[a]["custom_daily_savings"]
                             # Reflect custom load savings in efficient load
                             # shape
-                            eff_load_hourly_n = [
-                                base_load_hourly[i + st_hr] * (
-                                    1 - custom_save_shape[y]) for
+                            eff_load_hourly = [
+                                base_load_hourly[i] * (
+                                    1 - custom_save_shape[y]) if (
+                                    x in applicable_days) else
+                                eff_load_hourly[i] for
                                 i, (x, y) in enumerate_list]
+
                         # Custom annual load savings shape information contains
                         # savings fractions for all 8760 hours of the year
                         elif "custom_annual_savings" in \
@@ -4065,11 +4065,11 @@ class Measure(object):
                                     "energy_plus_data/savings_shapes.")
                             # Reflect custom load savings in efficient load
                             # shape; screen for NaNs in the CSV
-                            eff_load_hourly_n = [(
+                            eff_load_hourly = [(
                                 base_load_hourly[x] +
                                 custom_hr_save_shape[x]) if not
                                 numpy.isnan(custom_hr_save_shape[x]) else
-                                base_load_hourly[x] for x in range(8760)]
+                                eff_load_hourly[x] for x in range(8760)]
                         else:
                             # Throw an error if the load reshaping operation
                             # name is invalid
@@ -4078,20 +4078,6 @@ class Measure(object):
                                 "measure: " + self.name + ". Valid reshaping "
                                 "operations include 'custom_daily_savings' "
                                 "or 'custom_annual_savings'.")
-
-                    # If the time-varying impact does not apply across all 365
-                    # days of the year, stitch together the efficient load
-                    # shape information for all applicable hours (updated via
-                    # shed, shift, or shape operations above) with efficient
-                    # load shape information for all inapplicable hours (same
-                    # as the baseline load shape for these hours); otherwise,
-                    # reset the full efficient load shape (all 8760 hours) to
-                    # reflect the shed, shift, or shape operations above
-                    if len(applicable_days) != 365:
-                        eff_load_hourly = eff_load_hourly[0:st_hr] + \
-                            eff_load_hourly_n + eff_load_hourly[end_hr:]
-                    else:
-                        eff_load_hourly = eff_load_hourly_n
 
                 # Further adjust baseline and efficient load shapes
                 # to account for time sensitive valuation (TSV) output metrics
