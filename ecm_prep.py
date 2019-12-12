@@ -184,6 +184,8 @@ class UsefulVars(object):
         tsv_metrics_data (str): Settings for calculating tsv metrics outputs.
         tsv_hourly_price (dict): Dict for storing hourly price factors.
         tsv_hourly_emissions (dict): Dict for storing hourly emissions factors.
+        tsv_hourly_lafs (dict): Dict for storing annual energy, cost, and
+            carbon adjustment factors by region, building type, and end use.
     """
 
     def __init__(self, base_dir, handyfiles, regions):
@@ -673,306 +675,329 @@ class UsefulVars(object):
         # appliances/MELs areas; default is thus the EIA choice parameters
         # for refrigerator technologies
         self.deflt_choice = [-0.01, -0.12]
-        self.tsv_climate_regions = [
-            "2A", "2B", "3A", "3B", "3C", "4A", "4B",
-            "4C", "5A", "5B", "5C", "6A", "6B", "7"]
-        self.tsv_nerc_regions = [
-            "FRCC", "MRO", "NPCC", "RFC", "SERC", "SPP", "TRE", "WECC"]
-        # Develop weekend day flags
-        wknd_day_flags = [0 for n in range(365)]
-        current_wkdy = 1
-        for d in range(365):
-            # Flag weekend day
-            if current_wkdy in [1, 7]:
-                wknd_day_flags[d] = 1
-            # Advance day of week by one unless Saturday (7), in which
-            # case day switches back to 1 (Sunday)
-            if current_wkdy <= 6:
-                current_wkdy += 1
-            else:
-                current_wkdy = 1
 
-        # Develop lists with seasonal day of year ranges, both with and
-        # without weekends
+        # Use EMM region setting as a proxy for desired time-sensitive
+        # valuation (TSV) and associated need to initialize handy TSV variables
+        if regions == "EMM":
+            self.tsv_climate_regions = [
+                "2A", "2B", "3A", "3B", "3C", "4A", "4B",
+                "4C", "5A", "5B", "5C", "6A", "6B", "7"]
+            self.tsv_nerc_regions = [
+                "FRCC", "MRO", "NPCC", "RFC", "SERC", "SPP", "TRE", "WECC"]
+            # Develop weekend day flags
+            wknd_day_flags = [0 for n in range(365)]
+            current_wkdy = 1
+            for d in range(365):
+                # Flag weekend day
+                if current_wkdy in [1, 7]:
+                    wknd_day_flags[d] = 1
+                # Advance day of week by one unless Saturday (7), in which
+                # case day switches back to 1 (Sunday)
+                if current_wkdy <= 6:
+                    current_wkdy += 1
+                else:
+                    current_wkdy = 1
 
-        # Summer days of year
-        sum_days = list(range(152, 274))
-        sum_days_nowknd = [
-            x for x in sum_days if wknd_day_flags[(x - 1)] != 1]
-        # Winter days of year
-        wint_days = (list(
-                    range(1, 60)) + list(range(335, 366)))
-        wint_days_nowknd = [
-            x for x in wint_days if wknd_day_flags[(x - 1)] != 1]
-        # Intermediate days of year
-        inter_days = (list(
-                    range(60, 152)) + list(range(274, 335)))
-        inter_days_nowknd = [
-            x for x in inter_days if wknd_day_flags[(x - 1)] != 1]
+            # Develop lists with seasonal day of year ranges, both with and
+            # without weekends
 
-        self.tsv_metrics_data = {
-            "season days": {
-                "summer": sum_days,
-                "winter": wint_days,
-                "intermediate": inter_days
-            },
-            "season days no weekend": {
-                "summer": sum_days_nowknd,
-                "winter": wint_days_nowknd,
-                "intermediate": inter_days_nowknd
-            },
-            "peak_take data": {
-                "summer": {
-                    "hour ranges": {
-                        "peak": {
-                            "2A": list(range(17, 20)),
-                            "2B": list(range(16, 19)),
-                            "3A": list(range(18, 21)),
-                            "3B": list(range(17, 20)),
-                            "3C": list(range(18, 21)),
-                            "4A": list(range(13, 16)),
-                            "4B": list(range(16, 19)),
-                            "4C": list(range(16, 19)),
-                            "5A": list(range(17, 20)),
-                            "5B": list(range(16, 19)),
-                            "5C": list(range(16, 19)),
-                            "6A": list(range(15, 18)),
-                            "6B": list(range(16, 19)),
-                            "7": list(range(15, 18))},
-                        "take": {
-                            "2A": list(range(8, 11)),
-                            "2B": list(range(4, 7)),
-                            "3A": list(range(3, 6)),
-                            "3B": list(range(4, 7)),
-                            "3C": list(range(12, 15)),
-                            "4A": list(range(3, 6)),
-                            "4B": list(range(4, 7)),
-                            "4C": list(range(2, 5)),
-                            "5A": list(range(3, 6)),
-                            "5B": list(range(3, 6)),
-                            "5C": list(range(2, 5)),
-                            "6A": list(range(3, 6)),
-                            "6B": list(range(2, 5)),
-                            "7": list(range(3, 6))}},
-                    "peak day": {
-                        "day of year": {
-                            "2A": 199,
-                            "2B": 186,
-                            "3A": 192,
-                            "3B": 171,
-                            "3C": 220,
-                            "4A": 192,
-                            "4B": 206,
-                            "4C": 241,
-                            "5A": 199,
-                            "5B": 178,
-                            "5C": 206,
-                            "6A": 186,
-                            "6B": 220,
-                            "7": 206},
-                        "max hour": {
-                            "2A": 19,
-                            "2B": 17,
-                            "3A": 19,
-                            "3B": 19,
-                            "3C": 21,
-                            "4A": 14,
-                            "4B": 17,
-                            "4C": 17,
-                            "5A": 18,
-                            "5B": 17,
-                            "5C": 17,
-                            "6A": 17,
-                            "6B": 17,
-                            "7": 17},
-                        "min hour": {
-                            "2A": 9,
-                            "2B": 5,
-                            "3A": 4,
-                            "3B": 6,
-                            "3C": 13,
-                            "4A": 4,
-                            "4B": 5,
-                            "4C": 4,
-                            "5A": 5,
-                            "5B": 4,
-                            "5C": 4,
-                            "6A": 5,
-                            "6B": 4,
-                            "7": 5}
+            # Summer days of year
+            sum_days = list(range(152, 274))
+            sum_days_nowknd = [
+                x for x in sum_days if wknd_day_flags[(x - 1)] != 1]
+            # Winter days of year
+            wint_days = (list(
+                        range(1, 60)) + list(range(335, 366)))
+            wint_days_nowknd = [
+                x for x in wint_days if wknd_day_flags[(x - 1)] != 1]
+            # Intermediate days of year
+            inter_days = (list(
+                        range(60, 152)) + list(range(274, 335)))
+            inter_days_nowknd = [
+                x for x in inter_days if wknd_day_flags[(x - 1)] != 1]
+
+            self.tsv_metrics_data = {
+                "season days": {
+                    "summer": sum_days,
+                    "winter": wint_days,
+                    "intermediate": inter_days
+                },
+                "season days no weekend": {
+                    "summer": sum_days_nowknd,
+                    "winter": wint_days_nowknd,
+                    "intermediate": inter_days_nowknd
+                },
+                "peak_take data": {
+                    "summer": {
+                        "hour ranges": {
+                            "peak": {
+                                "2A": list(range(17, 20)),
+                                "2B": list(range(16, 19)),
+                                "3A": list(range(18, 21)),
+                                "3B": list(range(17, 20)),
+                                "3C": list(range(18, 21)),
+                                "4A": list(range(13, 16)),
+                                "4B": list(range(16, 19)),
+                                "4C": list(range(16, 19)),
+                                "5A": list(range(17, 20)),
+                                "5B": list(range(16, 19)),
+                                "5C": list(range(16, 19)),
+                                "6A": list(range(15, 18)),
+                                "6B": list(range(16, 19)),
+                                "7": list(range(15, 18))},
+                            "take": {
+                                "2A": list(range(8, 11)),
+                                "2B": list(range(4, 7)),
+                                "3A": list(range(3, 6)),
+                                "3B": list(range(4, 7)),
+                                "3C": list(range(12, 15)),
+                                "4A": list(range(3, 6)),
+                                "4B": list(range(4, 7)),
+                                "4C": list(range(2, 5)),
+                                "5A": list(range(3, 6)),
+                                "5B": list(range(3, 6)),
+                                "5C": list(range(2, 5)),
+                                "6A": list(range(3, 6)),
+                                "6B": list(range(2, 5)),
+                                "7": list(range(3, 6))}},
+                        "peak day": {
+                            "day of year": {
+                                "2A": 199,
+                                "2B": 186,
+                                "3A": 192,
+                                "3B": 171,
+                                "3C": 220,
+                                "4A": 192,
+                                "4B": 206,
+                                "4C": 241,
+                                "5A": 199,
+                                "5B": 178,
+                                "5C": 206,
+                                "6A": 186,
+                                "6B": 220,
+                                "7": 206},
+                            "max hour": {
+                                "2A": 19,
+                                "2B": 17,
+                                "3A": 19,
+                                "3B": 19,
+                                "3C": 21,
+                                "4A": 14,
+                                "4B": 17,
+                                "4C": 17,
+                                "5A": 18,
+                                "5B": 17,
+                                "5C": 17,
+                                "6A": 17,
+                                "6B": 17,
+                                "7": 17},
+                            "min hour": {
+                                "2A": 9,
+                                "2B": 5,
+                                "3A": 4,
+                                "3B": 6,
+                                "3C": 13,
+                                "4A": 4,
+                                "4B": 5,
+                                "4C": 4,
+                                "5A": 5,
+                                "5B": 4,
+                                "5C": 4,
+                                "6A": 5,
+                                "6B": 4,
+                                "7": 5}
+                        }
+                    },
+                    "winter": {
+                        "hour ranges": {
+                            "peak": {
+                                "2A": list(range(18, 21)),
+                                "2B": list(range(18, 21)),
+                                "3A": list(range(17, 20)),
+                                "3B": list(range(18, 21)),
+                                "3C": list(range(17, 20)),
+                                "4A": list(range(17, 20)),
+                                "4B": list(range(18, 21)),
+                                "4C": list(range(17, 20)),
+                                "5A": list(range(17, 20)),
+                                "5B": list(range(17, 20)),
+                                "5C": list(range(17, 20)),
+                                "6A": list(range(17, 20)),
+                                "6B": list(range(17, 20)),
+                                "7": list(range(17, 20))},
+                            "take": {
+                                "2A": list(range(13, 16)),
+                                "2B": list(range(13, 16)),
+                                "3A": list(range(13, 16)),
+                                "3B": list(range(13, 16)),
+                                "3C": list(range(12, 15)),
+                                "4A": list(range(3, 6)),
+                                "4B": list(range(13, 16)),
+                                "4C": list(range(13, 16)),
+                                "5A": list(range(11, 14)),
+                                "5B": list(range(13, 16)),
+                                "5C": list(range(13, 16)),
+                                "6A": list(range(3, 6)),
+                                "6B": list(range(13, 16)),
+                                "7": list(range(3, 6))}},
+                        "peak day": {
+                            "day of year": {
+                                "2A": 24,
+                                "2B": 17,
+                                "3A": 31,
+                                "3B": 10,
+                                "3C": 10,
+                                "4A": 31,
+                                "4B": 339,
+                                "4C": 38,
+                                "5A": 26,
+                                "5B": 10,
+                                "5C": 12,
+                                "6A": 10,
+                                "6B": 17,
+                                "7": 31},
+                            "max hour": {
+                                "2A": 20,
+                                "2B": 19,
+                                "3A": 19,
+                                "3B": 20,
+                                "3C": 19,
+                                "4A": 18,
+                                "4B": 19,
+                                "4C": 18,
+                                "5A": 19,
+                                "5B": 19,
+                                "5C": 18,
+                                "6A": 19,
+                                "6B": 18,
+                                "7": 19},
+                            "min hour": {
+                                "2A": 14,
+                                "2B": 14,
+                                "3A": 14,
+                                "3B": 14,
+                                "3C": 13,
+                                "4A": 4,
+                                "4B": 14,
+                                "4C": 15,
+                                "5A": 13,
+                                "5B": 14,
+                                "5C": 15,
+                                "6A": 4,
+                                "6B": 15,
+                                "7": 4}
+                        }
+                    },
+                    "intermediate": {
+                        "hour ranges": {
+                            "peak": {
+                                "2A": list(range(17, 20)),
+                                "2B": list(range(16, 19)),
+                                "3A": list(range(18, 21)),
+                                "3B": list(range(17, 20)),
+                                "3C": list(range(18, 21)),
+                                "4A": list(range(13, 16)),
+                                "4B": list(range(16, 19)),
+                                "4C": list(range(16, 19)),
+                                "5A": list(range(17, 20)),
+                                "5B": list(range(16, 19)),
+                                "5C": list(range(16, 19)),
+                                "6A": list(range(15, 18)),
+                                "6B": list(range(16, 19)),
+                                "7": list(range(15, 18))},
+                            "take": {
+                                "2A": list(range(8, 11)),
+                                "2B": list(range(4, 7)),
+                                "3A": list(range(3, 6)),
+                                "3B": list(range(4, 7)),
+                                "3C": list(range(12, 15)),
+                                "4A": list(range(3, 6)),
+                                "4B": list(range(4, 7)),
+                                "4C": list(range(2, 5)),
+                                "5A": list(range(3, 6)),
+                                "5B": list(range(3, 6)),
+                                "5C": list(range(2, 5)),
+                                "6A": list(range(3, 6)),
+                                "6B": list(range(2, 5)),
+                                "7": list(range(3, 6))}},
+                        "peak day": {
+                            "day of year": {
+                                "2A": 199,
+                                "2B": 186,
+                                "3A": 192,
+                                "3B": 171,
+                                "3C": 220,
+                                "4A": 192,
+                                "4B": 206,
+                                "4C": 241,
+                                "5A": 199,
+                                "5B": 178,
+                                "5C": 206,
+                                "6A": 186,
+                                "6B": 220,
+                                "7": 206},
+                            "max hour": {
+                                "2A": 19,
+                                "2B": 17,
+                                "3A": 19,
+                                "3B": 19,
+                                "3C": 21,
+                                "4A": 14,
+                                "4B": 17,
+                                "4C": 17,
+                                "5A": 18,
+                                "5B": 17,
+                                "5C": 17,
+                                "6A": 17,
+                                "6B": 17,
+                                "7": 17},
+                            "min hour": {
+                                "2A": 9,
+                                "2B": 5,
+                                "3A": 4,
+                                "3B": 6,
+                                "3C": 13,
+                                "4A": 4,
+                                "4B": 5,
+                                "4C": 4,
+                                "5A": 5,
+                                "5B": 4,
+                                "5C": 4,
+                                "6A": 5,
+                                "6B": 4,
+                                "7": 5}
+                        }
                     }
                 },
-                "winter": {
-                    "hour ranges": {
-                        "peak": {
-                            "2A": list(range(18, 21)),
-                            "2B": list(range(18, 21)),
-                            "3A": list(range(17, 20)),
-                            "3B": list(range(18, 21)),
-                            "3C": list(range(17, 20)),
-                            "4A": list(range(17, 20)),
-                            "4B": list(range(18, 21)),
-                            "4C": list(range(17, 20)),
-                            "5A": list(range(17, 20)),
-                            "5B": list(range(17, 20)),
-                            "5C": list(range(17, 20)),
-                            "6A": list(range(17, 20)),
-                            "6B": list(range(17, 20)),
-                            "7": list(range(17, 20))},
-                        "take": {
-                            "2A": list(range(13, 16)),
-                            "2B": list(range(13, 16)),
-                            "3A": list(range(13, 16)),
-                            "3B": list(range(13, 16)),
-                            "3C": list(range(12, 15)),
-                            "4A": list(range(3, 6)),
-                            "4B": list(range(13, 16)),
-                            "4C": list(range(13, 16)),
-                            "5A": list(range(11, 14)),
-                            "5B": list(range(13, 16)),
-                            "5C": list(range(13, 16)),
-                            "6A": list(range(3, 6)),
-                            "6B": list(range(13, 16)),
-                            "7": list(range(3, 6))}},
-                    "peak day": {
-                        "day of year": {
-                            "2A": 24,
-                            "2B": 17,
-                            "3A": 31,
-                            "3B": 10,
-                            "3C": 10,
-                            "4A": 31,
-                            "4B": 339,
-                            "4C": 38,
-                            "5A": 26,
-                            "5B": 10,
-                            "5C": 12,
-                            "6A": 10,
-                            "6B": 17,
-                            "7": 31},
-                        "max hour": {
-                            "2A": 20,
-                            "2B": 19,
-                            "3A": 19,
-                            "3B": 20,
-                            "3C": 19,
-                            "4A": 18,
-                            "4B": 19,
-                            "4C": 18,
-                            "5A": 19,
-                            "5B": 19,
-                            "5C": 18,
-                            "6A": 19,
-                            "6B": 18,
-                            "7": 19},
-                        "min hour": {
-                            "2A": 14,
-                            "2B": 14,
-                            "3A": 14,
-                            "3B": 14,
-                            "3C": 13,
-                            "4A": 4,
-                            "4B": 14,
-                            "4C": 15,
-                            "5A": 13,
-                            "5B": 14,
-                            "5C": 15,
-                            "6A": 4,
-                            "6B": 15,
-                            "7": 4}
+                "hourly index": list(enumerate(
+                    itertools.product(range(365), range(24))))
+            }
+            self.tsv_hourly_price = {
+                reg: {
+                    bldg: None for bldg in ("residential", "commercial")
+                } for reg in valid_regions
+            }
+            self.tsv_hourly_emissions = {
+                reg: None for reg in self.tsv_nerc_regions}
+
+            self.tsv_hourly_lafs = {
+                reg: {
+                    "residential": {
+                        bldg: {
+                            eu: None for eu in self.in_all_map[
+                                "end_use"]["residential"]["electricity"]
+                        } for bldg in self.in_all_map["bldg_type"]["residential"]
+                    },
+                    "commercial": {
+                        bldg: {
+                            eu: None for eu in self.in_all_map[
+                                "end_use"]["commercial"]["electricity"]
+                        } for bldg in self.in_all_map["bldg_type"]["commercial"]
                     }
-                },
-                "intermediate": {
-                    "hour ranges": {
-                        "peak": {
-                            "2A": list(range(17, 20)),
-                            "2B": list(range(16, 19)),
-                            "3A": list(range(18, 21)),
-                            "3B": list(range(17, 20)),
-                            "3C": list(range(18, 21)),
-                            "4A": list(range(13, 16)),
-                            "4B": list(range(16, 19)),
-                            "4C": list(range(16, 19)),
-                            "5A": list(range(17, 20)),
-                            "5B": list(range(16, 19)),
-                            "5C": list(range(16, 19)),
-                            "6A": list(range(15, 18)),
-                            "6B": list(range(16, 19)),
-                            "7": list(range(15, 18))},
-                        "take": {
-                            "2A": list(range(8, 11)),
-                            "2B": list(range(4, 7)),
-                            "3A": list(range(3, 6)),
-                            "3B": list(range(4, 7)),
-                            "3C": list(range(12, 15)),
-                            "4A": list(range(3, 6)),
-                            "4B": list(range(4, 7)),
-                            "4C": list(range(2, 5)),
-                            "5A": list(range(3, 6)),
-                            "5B": list(range(3, 6)),
-                            "5C": list(range(2, 5)),
-                            "6A": list(range(3, 6)),
-                            "6B": list(range(2, 5)),
-                            "7": list(range(3, 6))}},
-                    "peak day": {
-                        "day of year": {
-                            "2A": 199,
-                            "2B": 186,
-                            "3A": 192,
-                            "3B": 171,
-                            "3C": 220,
-                            "4A": 192,
-                            "4B": 206,
-                            "4C": 241,
-                            "5A": 199,
-                            "5B": 178,
-                            "5C": 206,
-                            "6A": 186,
-                            "6B": 220,
-                            "7": 206},
-                        "max hour": {
-                            "2A": 19,
-                            "2B": 17,
-                            "3A": 19,
-                            "3B": 19,
-                            "3C": 21,
-                            "4A": 14,
-                            "4B": 17,
-                            "4C": 17,
-                            "5A": 18,
-                            "5B": 17,
-                            "5C": 17,
-                            "6A": 17,
-                            "6B": 17,
-                            "7": 17},
-                        "min hour": {
-                            "2A": 9,
-                            "2B": 5,
-                            "3A": 4,
-                            "3B": 6,
-                            "3C": 13,
-                            "4A": 4,
-                            "4B": 5,
-                            "4C": 4,
-                            "5A": 5,
-                            "5B": 4,
-                            "5C": 4,
-                            "6A": 5,
-                            "6B": 4,
-                            "7": 5}
-                    }
-                }
-            },
-            "hourly index": list(enumerate(
-                itertools.product(range(365), range(24))))
-        }
-        self.tsv_hourly_price = {
-            reg: {
-                bldg: None for bldg in ("residential", "commercial")
-            } for reg in valid_regions
-        }
-        self.tsv_hourly_emissions = {
-            reg: None for reg in self.tsv_nerc_regions}
+                } for reg in valid_regions
+            }
+        else:
+            self.tsv_hourly_lafs = None
 
     def append_keyvals(self, dict1, keyval_list):
         """Append all terminal key values in a dict to a list.
@@ -1325,7 +1350,9 @@ class Measure(object):
                     "energy use. To address this issue, restrict the "
                     "measure's fuel type to electricity.")
             self.energy_outputs["tsv_metrics"] = tsv_metrics
-        self.handyvars = handyvars
+        # Deep copy handy vars to avoid any dependence of changes to these vars
+        # across other measures that use them
+        self.handyvars = copy.deepcopy(handyvars)
         # Set the rate of baseline retrofitting for ECM stock-and-flow calcs
         try:
             # Check first to see whether pulling up retrofit rate errors
@@ -3041,13 +3068,27 @@ class Measure(object):
                 # reweight energy/cost/carbon data to reflect hourly changes in
                 # energy load, energy price, and marginal carbon emissions
                 # across the desired annual or sub-annual time horizon
-                if self.energy_outputs["tsv_metrics"] is not False or (
+                if (self.energy_outputs["tsv_metrics"] is not False or (
                     self.tsv_features is not None and (
                         mskeys[0] == "secondary" or (
                             mskeys[0] == "primary" and
-                            mskeys[3] == "electricity"))):
+                            mskeys[3] == "electricity")))) and (
+                    self.handyvars.tsv_hourly_lafs is not None and
+                    self.handyvars.tsv_hourly_lafs[mskeys[1]][bldg_sect][
+                        mskeys[2]][mskeys[4]] is None):
                     tsv_scale_fracs = self.gen_tsv_facts(
                         tsv_data, mskeys, bldg_sect, convert_data, opts)
+                    # Set adjustment factors for current combination of
+                    # region, building type, and end use such that they
+                    # need not be calculated again for this combination in
+                    # subsequent technology microsegments
+                    self.handyvars.tsv_hourly_lafs[mskeys[1]][bldg_sect][
+                        mskeys[2]][mskeys[4]] = copy.deepcopy(tsv_scale_fracs)
+                elif (self.handyvars.tsv_hourly_lafs is not None and
+                      self.handyvars.tsv_hourly_lafs[mskeys[1]][bldg_sect][
+                        mskeys[2]][mskeys[4]] is not None):
+                    tsv_scale_fracs = self.handyvars.tsv_hourly_lafs[
+                        mskeys[1]][bldg_sect][mskeys[2]][mskeys[4]]
                 else:
                     tsv_scale_fracs = {
                         "energy": {"baseline": 1, "efficient": 1},
