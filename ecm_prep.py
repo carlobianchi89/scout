@@ -853,7 +853,7 @@ class UsefulVars(object):
 
                         }
                     },
-                    "net load hours": {
+                    "system load hours": {
                         "summer": sysld_sum,
                         "winter": sysld_wint,
                         "intermediate": sysld_int
@@ -894,9 +894,23 @@ class UsefulVars(object):
                         itertools.product(range(365), range(24))))
                 }
             else:
-                self.emm_name_num_map, self.cz_emm_map, \
-                    self.tsv_metrics_data = (
-                        None for n in range(3))
+                self.tsv_metrics_data = None
+                self.emm_name_num_map = {
+                    name: (ind + 1) for ind, name in enumerate(valid_regions)}
+                self.cz_emm_map = {
+                    "2A": 2, "2B": 19, "3A": {
+                        "set 1": [16, (16, 1, 12)],
+                        "set 2": [18, (18, 14, 15, 17)]}, "3B": 1, "3C": 20,
+                    "4A": {
+                        "set 1": [6, (6, 7, 9, 11)],
+                        "set 2": [17, (17, 18, 12, 13, 14, 15, 16)]}, "4B": 19,
+                    "4C": 21, "5A": {
+                        "set 1": [8, (8, 4, 13, 15, 16, 17)],
+                        "set 2": [11, (11, 3, 5, 6, 9, 10, 22)]},
+                    "5B": 22, "5C": 21, "6A": {
+                        "set 1": [4, (4, 8, 22)],
+                        "set 2": [5, (3, 5, 9, 10, 11)]},
+                    "6B": 21, "7": 4}
             self.tsv_hourly_price = {
                 reg: {
                     bldg: None for bldg in ("residential", "commercial")
@@ -948,25 +962,25 @@ class UsefulVars(object):
             "max": peak_take_cz["SummerMaxHr"][0],
             "min": peak_take_cz["SummerMinHr"][0],
             "peak range": list(range(peak_take_cz["SummerPeakStartHr"][0],
-                                     peak_take_cz["SummerPeakEndHr"][0])),
+                                     peak_take_cz["SummerPeakEndHr"][0] + 1)),
             "take range": list(range(peak_take_cz["SummerTakeStartHr1"][0],
-                                     peak_take_cz["SummerTakeEndHr1"][0]))}
+                                     peak_take_cz["SummerTakeEndHr1"][0] + 1))}
         # Set winter max load hour, min load hour, and peak/take windows
         wint_peak_take = {
             "max": peak_take_cz["WinterMaxHr"][0],
             "min": peak_take_cz["WinterMinHr"][0],
             "peak range": list(range(peak_take_cz["WinterPeakStartHr"][0],
-                                     peak_take_cz["WinterPeakEndHr"][0])),
+                                     peak_take_cz["WinterPeakEndHr"][0] + 1)),
             "take range": list(range(peak_take_cz["WinterTakeStartHr1"][0],
-                                     peak_take_cz["WinterTakeEndHr1"][0]))}
+                                     peak_take_cz["WinterTakeEndHr1"][0] + 1))}
         # Set intermediate max load hour, min load hour, and peak/take windows
         inter_peak_take = {
             "max": peak_take_cz["InterMaxHr"][0],
             "min": peak_take_cz["InterMinHr"][0],
             "peak range": list(range(peak_take_cz["InterPeakStartHr"][0],
-                                     peak_take_cz["InterPeakEndHr"][0])),
+                                     peak_take_cz["InterPeakEndHr"][0] + 1)),
             "take range": list(range(peak_take_cz["InterTakeStartHr1"][0],
-                                     peak_take_cz["InterTakeEndHr1"][0]))}
+                                     peak_take_cz["InterTakeEndHr1"][0] + 1))}
         # Handle cases where winter take periods cover two non-contiguous time
         # segments (e.g., 2-6AM, 10AM-2PM)
         if not numpy.isnan(peak_take_cz["WinterTakeStartHr2"][0]):
@@ -1057,7 +1071,7 @@ class EPlusMapDicts(object):
                 "SmallOffice": 0.12,
                 "OutpatientHealthcare": 0.88},
             "mercantile/service": {
-                "RetailStandAlone": 0.53,
+                "RetailStandalone": 0.53,
                 "RetailStripmall": 0.47},
             "warehouse": {
                 "Warehouse": 1},
@@ -1477,6 +1491,11 @@ class Measure(object):
                             bd_key = bd
                         if type(bd_key) != str:
                             bd_key = str(bd_key)
+                        # Account for possible use of StandAlone naming in
+                        # savings shape CSV, vs. Standalone naming in Scout's
+                        # baseline load shapes file
+                        if bd_key == "RetailStandAlone":
+                            bd_key = "RetailStandalone"
                         # Initialize dict under the current end use and
                         # building type keys
                         css_dict[eu_key][bd_key] = {}
@@ -1492,6 +1511,11 @@ class Measure(object):
                                 cz_key = cz
                             if type(cz_key) != str:
                                 cz_key = str(cz_key)
+                            # Account for possible use of climate 7A naming
+                            # in savings shape CSV, vs. 7 naming in Scout's
+                            # baseline load shapes file
+                            if cz_key == "7A":
+                                cz_key = "7"
                             # Restrict shape data to that of the current
                             # end use, building type, and climate zone
                             # combination
@@ -1504,12 +1528,13 @@ class Measure(object):
                             # Find all unique representative system load
                             # shapes for the current climate zone
                             sys_v = numpy.unique(
-                                css_dat_eu["Net_Load_Version"])
+                                css_dat_eu_bldg_cz["Net_Load_Version"])
                             for sv in sys_v:
                                 v_key = "set " + str(sv)
                                 css_dict[eu_key][bd_key][cz_key][v_key] = \
                                     css_dat_eu_bldg_cz[numpy.in1d(
-                                        css_dat_eu["Net_Load_Version"], sv)][
+                                        css_dat_eu_bldg_cz[
+                                            "Net_Load_Version"], sv)][
                                     "Relative_Savings"]
                                 # Check to ensure that the resultant dict
                                 # value is the expected 8760 elements long; if
@@ -3060,8 +3085,8 @@ class Measure(object):
                 # sub-annual time horizon; also pull hourly fraction of annual
                 # load data needed to calculate sector-level shapes below if
                 # the user has specified the '--sect_shapes' option
-                if (any([x is True for x in [
-                    opts.tsv_metrics, opts.sect_shapes]]) or
+                if ((self.energy_outputs["tsv_metrics"] is not False or
+                     opts.sect_shapes is True) or
                     self.tsv_features is not None) and (
                     mskeys[0] == "secondary" or (mskeys[0] == "primary" and
                                                  mskeys[3] == "electricity")):
@@ -3899,21 +3924,24 @@ class Measure(object):
             # Loop through all ASHRAE/IECC climate zones (which load profiles
             # are broken out by) that map to the current EMM region
             for cz in ash_cz_wts:
-
-                # Flag for cases where multiple sets of net load shape
+                # Flag for cases where multiple sets of system load shape
                 # information are germane to the current climate zone
                 if type(self.handyvars.cz_emm_map[cz[0]]) == int:
-                    mult_pktk = False
-                    mult_pktk_key = "set 1"
+                    mult_sysshp = False
+                    mult_sysshp_key_metrics, mult_sysshp_key_save = (
+                        "set 1" for n in range(2))
                 elif type(self.handyvars.cz_emm_map[cz[0]]) == dict:
-                    mult_pktk = True
-                    # Given multiple possible net system load shape data
+                    mult_sysshp = True
+                    # Given multiple possible system load shape data
                     # sets, find the key for the set that is representative
-                    # of the current EMM region
-                    mult_pktk_key = [
+                    # of the current EMM region; initialize separate keys to
+                    # use in retrieving TSV metrics data vs. savings shape
+                    # data (the approaches to keying in these different types
+                    # of data differ below)
+                    mult_sysshp_key_metrics, mult_sysshp_key_save = ([
                         y[0] for y in self.handyvars.cz_emm_map[cz[0]].items()
                         if self.handyvars.emm_name_num_map[mskeys[1]]
-                        in y[1][1]][0]
+                        in y[1][1]][0] for n in range(2))
                 else:
                     raise ValueError(
                         "Unable to determine representative utility system "
@@ -3945,6 +3973,10 @@ class Measure(object):
                         # will be keyed using only the first of the climate
                         # zones modeled in the TSV framework (2A)
                         load_fact_climate_key = "2A"
+                        # Reset flag for multiple sets of representative
+                        # savings shapes to be consistent with climate 2A
+                        mult_sysshp_key_save = "set 1"
+
                 else:
                     # Set the weighting factor
                     emm_adj_wt = cz[1]
@@ -3966,6 +3998,9 @@ class Measure(object):
                         # will be keyed using only the first of the climate
                         # zones modeled in the TSV framework (2A)
                         load_fact_climate_key = "2A"
+                        # Reset flag for multiple sets of representative
+                        # savings shapes to be consistent with climate 2A
+                        mult_sysshp_key_save = "set 1"
 
                 # Initialize efficient load shape as equal to base load
                 eff_load_hourly = base_load_hourly
@@ -4173,27 +4208,40 @@ class Measure(object):
                                 custom_hr_save_shape = tsv_adjustments[a][
                                     "custom_annual_savings"][eu][
                                     load_fact_bldg_key][load_fact_climate_key][
-                                    mult_pktk_key]
+                                    mult_sysshp_key_save]
                             except KeyError:
-                                custom_hr_save_shape = []
+                                # Try again with the assumption that there is
+                                # only one savings shape version per climate,
+                                # building, and end use combination (e.g.,
+                                # this will be the case for EE measures, vs.
+                                # DR measures which may respond to more than
+                                # one peak period range)
+                                try:
+                                    custom_hr_save_shape = tsv_adjustments[a][
+                                        "custom_annual_savings"][eu][
+                                        load_fact_bldg_key][
+                                        load_fact_climate_key]["set 1"]
+                                except KeyError:
+                                    custom_hr_save_shape = []
 
                             # Ensure that the resultant custom savings shape
                             # for the current combination of climate zone,
                             # building type, and end use is not zero elements.
-                            # If the savings shape is zero elements, notify the
-                            # user that no savings shape data were found for
-                            # the current climate/building/end use
-                            # combination and that the savings will be assumed
-                            # to be zero.
+                            # If the savings shape is zero elements, warn the
+                            # user (in verbose mode) that no savings shape
+                            # data were found for the current climate/building/
+                            # end use combination and that the savings will be
+                            # assumed to be zero.
                             if len(custom_hr_save_shape) == 0:
-                                raise ValueError(
+                                verboseprint(
+                                    opts.verbose,
                                     "Measure '" + self.name + "', requires "
-                                    "custom savings shape data, but none were"
+                                    "custom savings shape data, but none were "
                                     "found for the combination of climate "
                                     "zone " + load_fact_climate_key +
-                                    " (system load " + mult_pktk_key + "), " +
-                                    "building type "
-                                    + load_fact_bldg_key + ", and end use " +
+                                    " (system load " + mult_sysshp_key_save +
+                                    "), building type " +
+                                    load_fact_bldg_key + ", and end use " +
                                     eu + ". Assuming savings are zero for "
                                     " this combination. If this is "
                                     "unexpected, check that 8760 hourly "
@@ -4201,6 +4249,7 @@ class Measure(object):
                                     "all baseline market segments the "
                                     "measure applies to in ./ecm_definitions/"
                                     "energy_plus_data/savings_shapes.")
+                                custom_hr_save_shape = [0 for x in range(8760)]
                             # Reflect custom load savings in efficient load
                             # shape; screen for NaNs in the CSV
                             eff_load_hourly = [(
@@ -4305,60 +4354,60 @@ class Measure(object):
                         elif hours == "peak":
                             # Handle one set of net load shape data differently
                             # than multiple sets
-                            if mult_pktk is False:
+                            if mult_sysshp is False:
                                 tsv_metrics_hrs = \
                                     self.handyvars.tsv_metrics_data[
-                                        "net load hours"][season][cz[0]][
+                                        "system load hours"][season][cz[0]][
                                         "peak range"]
                             else:
                                 tsv_metrics_hrs = \
                                     self.handyvars.tsv_metrics_data[
-                                        "net load hours"][season][cz[0]][
-                                        mult_pktk_key]["peak range"]
+                                        "system load hours"][season][cz[0]][
+                                        mult_sysshp_key_metrics]["peak range"]
                         # Take hours only
                         else:
                             # Handle one set of net load shape data differently
                             # than multiple sets
-                            if mult_pktk is False:
+                            if mult_sysshp is False:
                                 tsv_metrics_hrs = \
                                     self.handyvars.tsv_metrics_data[
-                                        "net load hours"][season][cz[0]][
+                                        "system load hours"][season][cz[0]][
                                         "take range"]
                             else:
                                 tsv_metrics_hrs = \
                                     self.handyvars.tsv_metrics_data[
-                                        "net load hours"][season][cz[0]][
-                                        mult_pktk_key]["take range"]
+                                        "system load hours"][season][cz[0]][
+                                        mult_sysshp_key_metrics]["take range"]
                     # Maximum calc type (pertains only to a max/min hour)
                     else:
                         # All hours (assume max peak hour) or max peak hour
                         if hours == "all" or hours == "peak":
                             # Handle one set of net load shape data differently
                             # than multiple sets
-                            if mult_pktk is False:
+                            if mult_sysshp is False:
                                 tsv_metrics_hrs = [
                                     self.handyvars.tsv_metrics_data[
-                                        "net load hours"][season][cz[0]][
+                                        "system load hours"][season][cz[0]][
                                         "max"]]
                             else:
                                 tsv_metrics_hrs = [
                                     self.handyvars.tsv_metrics_data[
-                                        "net load hours"][season][cz[0]][
-                                        mult_pktk_key]["max"]]
+                                        "system load hours"][season][cz[0]][
+                                        mult_sysshp_key_metrics]["max"]]
                         # Min take hour
                         else:
                             # Handle one set of net load shape data differently
                             # than multiple sets
-                            if mult_pktk is False:
+                            if mult_sysshp is False:
                                 tsv_metrics_hrs = [
                                     self.handyvars.tsv_metrics_data[
-                                        "net load hours"][season][cz[0]][
+                                        "system load hours"][season][cz[0]][
                                         "min"]]
                             else:
                                 tsv_metrics_hrs = [
                                     self.handyvars.tsv_metrics_data[
-                                        "net load hours"][season][cz[0]][
-                                        mult_pktk_key]["min"]]
+                                        "system load hours"][season][cz[0]][
+                                        mult_sysshp_key_metrics]["min"]]
 
                     # Determine number of days to average over; if peak day
                     # only, set this number to one
