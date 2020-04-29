@@ -1572,10 +1572,9 @@ class Measure(object):
         if (any([x is not None for x in [
             self.tsv_features, tsv_metrics]]) and ((
                 type(self.climate_zone) == list and any([
-                x not in y for x, y in zip(
-                    self.climate_zone, valid_tsv_regions)])) or (
-                self.climate_zone != "all" and all([
-                self.climate_zone not in y for y in valid_tsv_regions])))):
+                    x not in valid_tsv_regions for x in self.climate_zone])) or
+            (type(self.climate_zone) != list and self.climate_zone != "all"
+                and (self.climate_zone not in valid_tsv_regions)))):
             raise ValueError(
                 "Invalid 'climate_zone' attribute value(s) for ECM '" +
                 self.name + "' given desired time sensitive valuation "
@@ -3200,14 +3199,14 @@ class Measure(object):
                         # otherwise, add to the previously initiated data
                         if mskeys[1] not in self.sector_shapes[
                                 adopt_scheme].keys():
-                            self.sector_shapes[adopt_scheme] = {mskeys[1]: {
+                            self.sector_shapes[adopt_scheme][mskeys[1]] = {
                                 yr: {"baseline": [tsv_shapes["baseline"][x] *
                                                   add_energy_total[yr] for x
                                                   in range(8760)],
                                      "efficient": [tsv_shapes["efficient"][x] *
                                                    add_energy_total_eff[yr] for
                                                    x in range(8760)]} for yr in
-                                self.handyvars.aeo_years_summary}}
+                                self.handyvars.aeo_years_summary}
                         else:
                             for yr in self.handyvars.aeo_years_summary:
                                 self.sector_shapes[adopt_scheme][mskeys[1]][
