@@ -3923,6 +3923,9 @@ class Measure(object):
             # Loop through all ASHRAE/IECC climate zones (which load profiles
             # are broken out by) that map to the current EMM region
             for cz in ash_cz_wts:
+                # Set the climate zone key to use in keying in savings
+                # shape information
+                load_fact_climate_key = cz[0]
                 # Flag for cases where multiple sets of system load shape
                 # information are germane to the current climate zone
                 if type(self.handyvars.cz_emm_map[cz[0]]) == int:
@@ -3960,22 +3963,9 @@ class Measure(object):
                     try:
                         base_load_hourly = load_fact[
                             load_fact_bldg_key]["load shape"][cz[0]]
-                        # If the baseline load shape is broken out by
-                        # climate zone, assume any savings shape information
-                        # will be keyed using the current climate zone
-                        load_fact_climate_key = cz[0]
                     except (KeyError, TypeError):
                         base_load_hourly = load_fact[
                             load_fact_bldg_key]["load shape"]
-                        # If the baseline load shape is not broken out by
-                        # climate zone, assume any savings shape information
-                        # will be keyed using only the first of the climate
-                        # zones modeled in the TSV framework (2A)
-                        load_fact_climate_key = "2A"
-                        # Reset flag for multiple sets of representative
-                        # savings shapes to be consistent with climate 2A
-                        mult_sysshp_key_save = "set 1"
-
                 else:
                     # Set the weighting factor
                     emm_adj_wt = cz[1]
@@ -3986,20 +3976,8 @@ class Measure(object):
                     # climate zone
                     try:
                         base_load_hourly = load_fact[cz[0]]
-                        # If the baseline load shape is broken out by
-                        # climate zone, assume any savings shape information
-                        # will be keyed using the current climate zone
-                        load_fact_climate_key = cz[0]
                     except (KeyError, TypeError):
                         base_load_hourly = load_fact
-                        # If the baseline load shape is not broken out by
-                        # climate zone, assume any savings shape information
-                        # will be keyed using only the first of the climate
-                        # zones modeled in the TSV framework (2A)
-                        load_fact_climate_key = "2A"
-                        # Reset flag for multiple sets of representative
-                        # savings shapes to be consistent with climate 2A
-                        mult_sysshp_key_save = "set 1"
 
                 # Initialize efficient load shape as equal to base load
                 eff_load_hourly = base_load_hourly
