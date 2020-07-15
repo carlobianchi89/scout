@@ -55,6 +55,7 @@ class UsefulInputFiles(object):
         tsv_shape_data (CSV): Custom time sensitive hourly savings shape data.
         tsv_metrics_data_tot (CSV): Total system load shape data by EMM region.
         tsv_metrics_data_net (CSV): Net system load shape data by EMM region.
+        health_data (CSV): EPA public health benefits data by EMM region.
         regions (str): Specifies which baseline data file to choose, based on
             intended regional breakout.
         ash_emm_map (TXT): Factors for mapping ASHRAE climates to EMM regions.
@@ -113,6 +114,8 @@ class UsefulInputFiles(object):
             "supporting_data", "tsv_data", "tsv_hrs_tot.csv")
         self.tsv_metrics_data_net = (
             "supporting_data", "tsv_data", "tsv_hrs_net.csv")
+        self.health_data = (
+            "supporting_data", "convert_data", "epa_costs.csv")
 
 
 class UsefulVars(object):
@@ -198,9 +201,12 @@ class UsefulVars(object):
         emm_name_num_map (dict): Maps EMM region names to EIA region numbers.
         cz_emm_map (dict): Maps climate zones to EMM region net system load
             shape data.
+        health_scn_names (list): List of public health data scenario names.
+        health_scn_data (numpy.ndarray): Public health cost data.
     """
 
-    def __init__(self, base_dir, handyfiles, regions, tsv_metrics):
+    def __init__(self, base_dir, handyfiles, regions, tsv_metrics,
+                 health_costs):
         self.adopt_schemes = ['Technical potential', 'Max adoption potential']
         self.discount_rate = 0.07
         self.retro_rate = 0.01
@@ -936,6 +942,25 @@ class UsefulVars(object):
         else:
             self.tsv_hourly_lafs = None
 
+        # Condition health data scenario initialization on whether user
+        # has requested that public health costs be accounted for
+        if health_costs is True:
+            # For each health data scenario, set the intended measure name
+            # appendage (tuple element 1), type of efficiency to attach health
+            # benefits to (element 2), and column in the data file from which
+            # to retrieve these benefit values (element 3)
+            self.health_scn_names = [
+                ("PHC-EE (low)", "Uniform EE", "2017cents_kWh_7pct_low"),
+                ("PHC-EE (high)", "Uniform EE", "2017cents_kWh_3pct_high")]
+            # Set data file with public health benefits information
+            self.health_scn_data = numpy.genfromtxt(
+                    path.join(base_dir, *handyfiles.health_data),
+                    names=("AVERT_Region", "EMM_Region", "Category",
+                           "2017cents_kWh_3pct_low", "2017cents_kWh_3pct_high",
+                           "2017cents_kWh_7pct_low",
+                           "2017cents_kWh_7pct_high"),
+                    delimiter=',', dtype=(['<U25'] * 3 + ['<f8'] * 4))
+
     def set_peak_take(self, sysload_dat, restrict_key):
         """Fill in dicts with seasonal system load shape data.
 
@@ -1291,7 +1316,9 @@ class Measure(object):
         remove (boolean): Determines whether measure should be removed from
             analysis engine due to insufficient market source data.
         energy_outputs (dict): Indicates whether site energy or captured
-            energy site-source conversions were used in measure preparation.
+            energy site-source conversions were used in measure preparation,
+            as well as regions used for this preparation and whether or not
+            public health cost adders were specified.
         handyvars (object): Global variables useful across class methods.
         retro_rate (float or list): Stock retrofit rate specific to the ECM.
         technology_type (string): Flag for supply- or demand-side technology.
@@ -1311,19 +1338,20 @@ class Measure(object):
 
     def __init__(
             self, base_dir, handyvars, handyfiles, site_energy, capt_energy,
-            regions, tsv_metrics, **kwargs):
+            regions, tsv_metrics, health_costs, **kwargs):
         # Read Measure object attributes from measures input JSON.
         for key, value in kwargs.items():
             setattr(self, key, value)
-        # Check to ensure that measure name is proper length for plotting
-        if len(self.name) > 45:
+        # Check to ensure that measure name is proper length for plotting;
+        # for now, exempt measures with public health cost adders
+        if len(self.name) > 45 and "PHC" not in self.name:
             raise ValueError(
                 "ECM '" + self.name + "' name must be <= 45 characters")
         self.remove = False
         # Flag custom energy output settings (user-defined)
         self.energy_outputs = {
             "site_energy": False, "captured_energy_ss": False,
-            "alt_regions": False, "tsv_metrics": False}
+            "alt_regions": False, "tsv_metrics": False, "health_costs": False}
         if site_energy is True:
             self.energy_outputs["site_energy"] = True
         if capt_energy is True:
@@ -1339,6 +1367,13 @@ class Measure(object):
                     "energy use. To address this issue, restrict the "
                     "measure's fuel type to electricity.")
             self.energy_outputs["tsv_metrics"] = tsv_metrics
+        if health_costs is not None:
+            # Look for pre-determined health cost scenario names in the
+            # UsefulVars class, "health_scn_names" attribute
+            if "PHC-EE (low)" in self.name:
+                self.energy_outputs["health_costs"] = "Uniform EE-low"
+            elif "PHC-EE (high)" in self.name:
+                self.energy_outputs["health_costs"] = "Uniform EE-high"
         self.sector_shapes = {a_s: {} for a_s in handyvars.adopt_schemes}
         # Deep copy handy vars to avoid any dependence of changes to these vars
         # across other measures that use them
@@ -2751,6 +2786,29 @@ class Measure(object):
                         "Invalid performance or cost units for ECM '" +
                         self.name + "'")
 
+                # For electricity microsegments in measure scenarios that
+                # require the addition of public health cost data, retrieve
+                # the appropriate cost data for the given EMM region
+                if opts is not None and opts.health_costs is True and \
+                        "PHC" in self.name and "electricity" in mskeys:
+                    # Set row/column key information for the public health
+                    # cost scenario suggested by the measure name
+                    row_key = [x[1] for x in self.handyvars.health_scn_names if
+                               x[0] in self.name][0]
+                    col_key = [x[2] for x in self.handyvars.health_scn_names if
+                               x[0] in self.name][0]
+                    # Pull the appropriate public health cost information for
+                    # the current health cost scenario and EMM region; convert
+                    # from units of cents/primary kWh to $/MMBtu source
+                    phc_dat = ((self.handyvars.health_scn_data[
+                        numpy.in1d(
+                            self.handyvars.health_scn_data["Category"],
+                            row_key) & numpy.in1d(
+                            self.handyvars.health_scn_data["EMM_Region"],
+                            mskeys[1])][col_key])[0] / 100) * 293.07107
+                else:
+                    phc_dat = None
+
                 # Reduce energy costs and stock turnover info. to appropriate
                 # building type and - for energy costs - fuel, before
                 # entering into "partition_microsegment"
@@ -2979,6 +3037,16 @@ class Measure(object):
                                              self.handyvars.com_timeprefs[
                                                  "distributions"][
                                                  "refrigeration"]}
+
+                # Add in public health costs to existing energy cost data
+                if opts is not None and opts.health_costs is True and \
+                        "PHC" in self.name and "electricity" in mskeys:
+                    # Update base energy costs with public health data
+                    cost_energy_base = {yr: (val + phc_dat) for yr, val in
+                                        cost_energy_base.items()}
+                    # Update measure energy costs with public health data
+                    cost_energy_meas = {yr: (val + phc_dat) for yr, val in
+                                        cost_energy_meas.items()}
 
                 # Find fraction of total new buildings in each year.
                 # Note: in each year, this fraction is calculated by summing
@@ -7197,6 +7265,8 @@ def prepare_measures(measures, convert_data, msegs, msegs_cpl, handyvars,
         tsv_data (dict): Data needed for time sensitive efficiency valuation.
         base_dir (string): Base directory.
         opts (object): Stores user-specified execution options.
+        regions (string): Regional breakouts to use.
+        tsv_metrics (boolean or list): TSV metrics settings.
 
     Returns:
         A list of dicts, each including a set of measure attributes that has
@@ -7209,7 +7279,8 @@ def prepare_measures(measures, convert_data, msegs, msegs_cpl, handyvars,
     # Initialize Measure() objects based on 'measures_update' list
     meas_update_objs = [Measure(
         base_dir, handyvars, handyfiles, opts.site_energy,
-        opts.captured_energy, regions, tsv_metrics, **m) for m in measures]
+        opts.captured_energy, regions, tsv_metrics, opts.health_costs,
+        **m) for m in measures]
 
     # Fill in EnergyPlus-based performance information for Measure objects
     # with a 'From EnergyPlus' flag in their 'energy_efficiency' attribute
@@ -7287,7 +7358,7 @@ def prepare_packages(packages, meas_update_objs, meas_summary,
                 meas_obj = Measure(
                     base_dir, handyvars, handyfiles, opts.site_energy,
                     opts.captured_energy, regions, tsv_metrics,
-                    **meas_summary_data[0])
+                    opts.health_costs, **meas_summary_data[0])
                 # Reset measure technology type and total energy (used to
                 # normalize output breakout fractions) to their values in the
                 # high level summary data (reformatted during initialization)
@@ -7601,6 +7672,15 @@ def main(base_dir):
     else:
         tsv_metrics = None
 
+    # Ensure that if public cost health data are to be applied, EMM regional
+    # breakouts are set (health data use this resolution)
+    if opts is not None and opts.health_costs is True and regions != "EMM":
+        opts.alt_regions, regions = [True, "EMM"]
+        warnings.warn(
+            "WARNING: Analysis regions were set to EMM to allow public health "
+            "cost adders: ensure that ECM data reflect these EMM regions "
+            "(and not the default AIA regions)")
+
     # Custom format all warning messages (ignore everything but
     # message itself) *** Note: sometimes yields error; investigate ***
     # warnings.formatwarning = custom_formatwarning
@@ -7615,7 +7695,8 @@ def main(base_dir):
     #     raise ValueError("Inconsistent AEO version used across input files")
 
     # Instantiate useful variables object
-    handyvars = UsefulVars(base_dir, handyfiles, regions, tsv_metrics)
+    handyvars = UsefulVars(
+        base_dir, handyfiles, regions, tsv_metrics, opts.health_costs)
 
     # Import file to write prepared measure attributes data to for
     # subsequent use in the analysis engine (if file does not exist,
@@ -7661,8 +7742,8 @@ def main(base_dir):
                 # '/supporting_data/ecm_competition_data' folder), or
                 # c) measure JSON time stamp indicates it has been modified
                 # since the last run of 'ecm_prep.py' or d) the user added/
-                # removed either the "site_energy" or "captured_energy" cmd
-                # line arguments and the measure definition was not already
+                # removed the "site_energy," "captured_energy" or "tsv_metrics"
+                # cmd line arguments and the measure definition was not already
                 # prepared using these settings
                 if all([meas_dict["name"] != y["name"] for
                        y in meas_summary]) or \
@@ -7684,7 +7765,7 @@ def main(base_dir):
                           y["energy_outputs"]["alt_regions"] != regions)
                          for y in meas_summary if y["name"] ==
                          meas_dict["name"]])) or \
-                   (opts is None or opts.tsv_metrics is True and
+                   (opts is not None and opts.tsv_metrics is True and
                     all([y["energy_outputs"]["tsv_metrics"] is False or
                          y["energy_outputs"]["tsv_metrics"] != tsv_metrics
                          for y in meas_summary if y["name"] ==
@@ -7697,7 +7778,7 @@ def main(base_dir):
                     all([y["energy_outputs"]["captured_energy_ss"] is True
                          for y in meas_summary if y["name"] ==
                          meas_dict["name"]])) or \
-                   (opts is not None and opts.alt_regions is False and
+                   (opts is None or opts.alt_regions is False and
                     all([y["energy_outputs"]["alt_regions"] is not False
                          for y in meas_summary if y["name"] ==
                          meas_dict["name"]])) or \
@@ -7708,6 +7789,22 @@ def main(base_dir):
                     # Append measure dict to list of measure definitions
                     # to update if it meets the above criteria
                     meas_toprep_indiv.append(meas_dict)
+                    # Add copies of the measure that examine multiple scenarios
+                    # of public health cost data additions, assuming the
+                    # measure is not already a previously prepared copy
+                    # that reflects these additions (judging by name)
+                    if opts is not None and opts.health_costs is True and \
+                            "PHC" not in meas_dict["name"]:
+                        for scn in handyvars.health_scn_names:
+                            # Determine unique measure copy name
+                            new_name = meas_dict["name"] + "-" + scn[0]
+                            # Copy the measure
+                            new_meas = copy.deepcopy(meas_dict)
+                            # Set the copied measure name to the name above
+                            new_meas["name"] = new_name
+                            # Append the copied measure to list of measure
+                            # definitions to update
+                            meas_toprep_indiv.append(new_meas)
             except ValueError as e:
                 raise ValueError(
                     "Error reading in ECM '" + mi + "': " +
@@ -7862,7 +7959,7 @@ def main(base_dir):
         if meas_toprep_package:
             meas_prepped_objs = prepare_packages(
                 meas_toprep_package, meas_prepped_objs, meas_summary,
-                handyvars, handyfiles, base_dir, opts, regions, tsv_metrics)
+                handyvars, handyfiles, base_dir, opts, regions)
 
         # Split prepared measure data into subsets needed to set high-level
         # measure attributes information and to execute measure competition
@@ -7940,6 +8037,9 @@ if __name__ == "__main__":
     # Optional flag to print all warning messages to stdout
     parser.add_argument("--verbose", action="store_true",
                         help="Print all warnings to stdout")
+    # Optional flag to introduce public health cost assessment
+    parser.add_argument("--health_costs", action="store_true",
+                        help="Flag addition of public health cost data")
     # Object to store all user-specified execution arguments
     opts = parser.parse_args()
 
