@@ -27,6 +27,12 @@ before_install:
   - export PATH="$HOME/miniconda/bin:$PATH"
   # Update conda itself
   - conda update --yes conda
+  # Get the PyPI numpy_financial package not available from Anaconda Cloud
+  # https://stackoverflow.com/questions/29286624/how-to-install-pypi-packages-using-anaconda-conda-command
+  - conda install --yes conda-build
+  - conda skeleton pypi numpy-financial
+  - conda build numpy-financial
+  - conda install --yes --use-local numpy-financial
   # Set up grunt by installing grunt-cli
   # and the dependencies listed in package.json
   - npm install -g grunt-cli
@@ -34,7 +40,7 @@ before_install:
 
 # Install packages
 install: 
-  - conda create --yes -n testenv python=$TRAVIS_PYTHON_VERSION numpy=1.15 scipy flake8 requests
+  - conda create --yes --use-local -n testenv python=$TRAVIS_PYTHON_VERSION numpy=1.15 scipy flake8 requests numpy-financial
   - source activate testenv
 
 # Run test(s)
