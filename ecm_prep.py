@@ -188,6 +188,7 @@ class UsefulVars(object):
             cost parameters to use when choice data are missing.
         regions (str): Regions to use in geographically breaking out the data.
         months (str): Month sequence for accessing time-sensitive data.
+        tsv_feature_types (list): Possible types of TSV features.
         tsv_climate_regions (list): Possible ASHRAE/IECC climate regions for
             time-sensitive analysis and metrics.
         tsv_nerc_regions (list): Possible NERC regions for time-sensitive data.
@@ -694,6 +695,9 @@ class UsefulVars(object):
         # appliances/MELs areas; default is thus the EIA choice parameters
         # for refrigerator technologies
         self.deflt_choice = [-0.01, -0.12]
+
+        # Set valid types of TSV feature types
+        self.tsv_feature_types = ["shed", "shift", "shape"]
 
         # Use EMM region setting as a proxy for desired time-sensitive
         # valuation (TSV) and associated need to initialize handy TSV variables
@@ -2085,46 +2089,160 @@ class Measure(object):
                     # cost, performance, and lifetime fields that is generated
                     # by the 'Add ECM' web form in certain cases *** NOTE: WILL
                     # FIX IN FUTURE UI VERSION ***
-                    if isinstance(perf_meas, dict) and "undefined" in \
-                       perf_meas.keys():
-                        perf_meas = perf_meas["undefined"]
-                    if isinstance(perf_units, dict) and "undefined" in \
-                       perf_units.keys():
-                        perf_units = perf_units["undefined"]
-                    if isinstance(cost_meas, dict) and "undefined" in \
-                       cost_meas.keys():
-                        cost_meas = cost_meas["undefined"]
-                    if isinstance(cost_units, dict) and "undefined" in \
-                       cost_units.keys():
-                        cost_units = cost_units["undefined"]
-                    if isinstance(life_meas, dict) and "undefined" in \
-                       life_meas.keys():
-                        life_meas = life_meas["undefined"]
+                    if (any([type(x) is dict and "undefined" in x.keys()
+                             for x in [perf_meas, perf_units, cost_meas,
+                                       cost_units, life_meas]])):
+                        if isinstance(perf_meas, dict) and "undefined" in \
+                           perf_meas.keys():
+                            perf_meas = perf_meas["undefined"]
+                        if isinstance(perf_units, dict) and "undefined" in \
+                           perf_units.keys():
+                            perf_units = perf_units["undefined"]
+                        if isinstance(cost_meas, dict) and "undefined" in \
+                           cost_meas.keys():
+                            cost_meas = cost_meas["undefined"]
+                        if isinstance(cost_units, dict) and "undefined" in \
+                           cost_units.keys():
+                            cost_units = cost_units["undefined"]
+                        if isinstance(life_meas, dict) and "undefined" in \
+                           life_meas.keys():
+                            life_meas = life_meas["undefined"]
 
-                    # Restrict any measure cost/performance/lifetime/market
-                    # scaling info. that is a dict type to key chain info.
-                    if isinstance(perf_meas, dict) and mskeys[i] in \
-                       perf_meas.keys():
-                        perf_meas = perf_meas[mskeys[i]]
-                    if isinstance(perf_units, dict) and mskeys[i] in \
-                       perf_units.keys():
-                        perf_units = perf_units[mskeys[i]]
-                    if isinstance(cost_meas, dict) and mskeys[i] in \
-                       cost_meas.keys():
-                        cost_meas = cost_meas[mskeys[i]]
-                    if isinstance(cost_units, dict) and mskeys[i] in \
-                       cost_units.keys():
-                        cost_units = cost_units[mskeys[i]]
-                    if isinstance(life_meas, dict) and mskeys[i] in \
-                       life_meas.keys():
-                        life_meas = life_meas[mskeys[i]]
-                    if isinstance(mkt_scale_frac, dict) and mskeys[i] in \
-                            mkt_scale_frac.keys():
-                        mkt_scale_frac = mkt_scale_frac[mskeys[i]]
-                    if isinstance(mkt_scale_frac_source, dict) and \
-                            mskeys[i] in mkt_scale_frac_source.keys():
-                        mkt_scale_frac_source = \
-                            mkt_scale_frac_source[mskeys[i]]
+                    # Check for/handle breakouts of performance, cost,
+                    # lifetime, or market scaling information
+
+                    # Determine the full set of potential breakout keys
+                    # that should be represented in the given ECM attribute for
+                    # the current microsegment level (used to check for
+                    # missing information below)
+                    if (any([type(x) is dict for x in [
+                        perf_meas, perf_units, cost_meas, cost_units,
+                        life_meas, mkt_scale_frac,
+                            mkt_scale_frac_source]])):
+                        # primary/secondary level
+                        if (i == 0):
+                            break_keys = ["primary", "secondary"]
+                            err_message = ''
+                        # full set of climate breakouts
+                        elif (i == 1):
+                            break_keys = self.climate_zone
+                            err_message = "regions the measure applies to: "
+                        # full set of building breakouts
+                        elif (i == 2):
+                            break_keys = self.bldg_type
+                            err_message = "buildings the measure applies to: "
+                        # full set of fuel breakouts
+                        elif (i == 3):
+                            break_keys = self.fuel_type[mskeys[0]]
+                            err_message = "fuel types the measure applies to: "
+                        # full set of end use breakouts
+                        elif (i == 4):
+                            break_keys = self.end_use[mskeys[0]]
+                            err_message = "end uses the measure applies to: "
+                        # full set of technology breakouts
+                        elif (i == (len(mskeys) - 2)):
+                            break_keys = self.technology[mskeys[0]]
+                            err_message = \
+                                "technologies the measure applies to: "
+                        # full set of vintage breakouts
+                        elif (i == (len(mskeys) - 1)):
+                            break_keys = self.structure_type
+                            err_message = \
+                                "building vintages the measure applies to: "
+                        else:
+                            break_keys = ''
+                            err_message = ''
+
+                        # Restrict any measure cost/performance/lifetime/market
+                        # scaling info. that is a dict type to key chain info.
+                        # - in the process, check to ensure that if there is
+                        # breakout information provided for the given level in
+                        # the microsegment, this breakout information is
+                        # complete (for example, if performance is broken out
+                        # by climate region, ALL climate regions should be
+                        # present in the breakout keys)
+                        if isinstance(perf_meas, dict) and break_keys and all([
+                                x in perf_meas.keys() for x in break_keys]):
+                            perf_meas = perf_meas[mskeys[i]]
+                        elif isinstance(perf_meas, dict) and any(
+                                [x in perf_meas.keys() for x in break_keys]):
+                            raise KeyError(
+                                self.name +
+                                ' energy performance (energy_efficiency) '
+                                'must be broken out '
+                                'by ALL ' + err_message + str(break_keys))
+                        if isinstance(perf_units, dict) and break_keys and \
+                                all([x in perf_units.keys() for
+                                     x in break_keys]):
+                            perf_units = perf_units[mskeys[i]]
+                        elif isinstance(perf_units, dict) and any(
+                                [x in perf_units.keys() for x in break_keys]):
+                            raise KeyError(
+                                self.name +
+                                ' energy performance units ('
+                                'energy_efficiency_units) must be broken '
+                                'out by ALL ' + err_message + str(break_keys))
+                        if isinstance(cost_meas, dict) and break_keys and \
+                            all([x in cost_meas.keys() for
+                                 x in break_keys]):
+                            cost_meas = cost_meas[mskeys[i]]
+                        elif isinstance(cost_meas, dict) and any(
+                                [x in cost_meas.keys() for x in break_keys]):
+                            raise KeyError(
+                                self.name +
+                                ' installed cost (installed_cost) must '
+                                'be broken out '
+                                'by ALL ' + err_message + str(break_keys))
+                        if isinstance(cost_units, dict) and break_keys and \
+                            all([x in cost_units.keys() for
+                                 x in break_keys]):
+                            cost_units = cost_units[mskeys[i]]
+                        elif isinstance(cost_units, dict) and any(
+                                [x in cost_units.keys() for x in break_keys]):
+                            raise KeyError(
+                                self.name +
+                                ' installed cost units (installed_cost_'
+                                'units) must be broken out '
+                                'by ALL ' + err_message + str(break_keys))
+                        if isinstance(life_meas, dict) and break_keys and all([
+                                x in life_meas.keys() for x in break_keys]):
+                            life_meas = life_meas[mskeys[i]]
+                        elif isinstance(life_meas, dict) and any(
+                                [x in life_meas.keys() for x in break_keys]):
+                            raise KeyError(
+                                self.name +
+                                ' lifetime (product_lifetime) must be '
+                                'broken out '
+                                'by ALL ' + err_message + str(break_keys))
+                        if isinstance(mkt_scale_frac, dict) and break_keys \
+                            and all([x in mkt_scale_frac.keys() for
+                                     x in break_keys]):
+                            mkt_scale_frac = mkt_scale_frac[mskeys[i]]
+                        elif isinstance(mkt_scale_frac, dict) and any(
+                                [x in mkt_scale_frac.keys() for
+                                 x in break_keys]):
+                            raise KeyError(
+                                self.name +
+                                ' market scaling fractions (market_'
+                                'scaling_fractions) must be '
+                                'broken out by ALL ' + err_message +
+                                str(break_keys))
+                        if isinstance(mkt_scale_frac_source, dict) and \
+                            break_keys and all([
+                                x in mkt_scale_frac_source.keys() for
+                                x in break_keys]):
+                            mkt_scale_frac_source = \
+                                mkt_scale_frac_source[mskeys[i]]
+                        elif isinstance(mkt_scale_frac_source, dict) and any(
+                                [x in mkt_scale_frac_source.keys() for
+                                 x in break_keys]):
+                            raise KeyError(
+                                self.name +
+                                ' market scaling fraction source (market_'
+                                'scaling_fraction_source) must be '
+                                'broken out by ALL ' + err_message +
+                                str(break_keys))
+
                 # If no key match, break the loop
                 else:
                     if mskeys[i] is not None:
@@ -3880,41 +3998,60 @@ class Measure(object):
         # this with an empty dict
 
         if self.tsv_features is not None:
-            # By EMM region, building type, and end use
-            try:
-                tsv_adjustments = self.tsv_features[mskeys[1]][mskeys[2]][
-                    mskeys[4]]
-            # By EMM region and building type
-            except KeyError:
+            if (type(self.tsv_features) is dict and all([
+                x not in self.handyvars.tsv_feature_types for x in
+                    self.tsv_features.keys()])):
+
+                # By EMM region, building type, and end use
                 try:
-                    tsv_adjustments = self.tsv_features[mskeys[1]][mskeys[2]]
-                # By EMM region and end use
+                    tsv_adjustments = self.tsv_features[mskeys[1]][mskeys[2]][
+                        mskeys[4]]
+                # By EMM region and building type
                 except KeyError:
                     try:
                         tsv_adjustments = self.tsv_features[mskeys[1]][
-                            mskeys[4]]
-                    # By building type and end use
+                            mskeys[2]]
+                    # By EMM region and end use
                     except KeyError:
                         try:
-                            tsv_adjustments = self.tsv_features[mskeys[2]][
+                            tsv_adjustments = self.tsv_features[mskeys[1]][
                                 mskeys[4]]
-                        # By EMM region
+                        # By building type and end use
                         except KeyError:
                             try:
-                                tsv_adjustments = self.tsv_features[mskeys[1]]
-                            # By building type
+                                tsv_adjustments = self.tsv_features[mskeys[2]][
+                                    mskeys[4]]
+                            # By EMM region
                             except KeyError:
                                 try:
                                     tsv_adjustments = self.tsv_features[
-                                        mskeys[2]]
-                                # By end use
+                                        mskeys[1]]
+                                # By building type
                                 except KeyError:
                                     try:
                                         tsv_adjustments = self.tsv_features[
-                                            mskeys[4]]
-                                    # Not broken out by any of these
+                                            mskeys[2]]
+                                    # By end use
                                     except KeyError:
-                                        tsv_adjustments = self.tsv_features
+                                        try:
+                                            tsv_adjustments = \
+                                                self.tsv_features[
+                                                    mskeys[4]]
+                                        # Not broken out by any of these
+                                        except KeyError:
+                                            raise KeyError(
+                                                "Unexpected breakout of "
+                                                "tsv_features parameter for"
+                                                "measure " + self.name +
+                                                ". If this parameter is "
+                                                "broken out by region, "
+                                                "building type, or "
+                                                "end use, ensure that ALL "
+                                                "categories of these "
+                                                "variables are correctly "
+                                                "represented in the breakout.")
+            else:
+                tsv_adjustments = self.tsv_features
         else:
             tsv_adjustments = {}
 
@@ -4265,6 +4402,13 @@ class Measure(object):
                                 "measure: " + self.name + ". Valid reshaping "
                                 "operations include 'custom_daily_savings' "
                                 "or 'custom_annual_savings'.")
+                    # Yield error if unexpected TSV feature type is present
+                    else:
+                        raise KeyError(
+                            "Invalid feature type present in tsv_features "
+                            "attribute for measure " + self.name +
+                            " - valid types include: " +
+                            str(self.handyvars.tsv_feature_types))
                 # Update hourly fractions of annual baseline and efficient
                 # energy to reflect baseline hourly load shape plus effects of
                 # time-sensitive measure features on the baseline load (if any)
@@ -5789,6 +5933,7 @@ class Measure(object):
             # formatted as a list with certain elements containing 'all' (e.g.,
             # ['all heating,' 'central AC', 'room AC'])
             if self.technology[mseg_type] == 'all' or \
+                self.technology[mseg_type] == ['all'] or \
                 (type(self.technology[mseg_type]) == list and any([
                  t is not None and 'all ' in t for t in
                  self.technology[mseg_type]])) or (
@@ -5809,7 +5954,7 @@ class Measure(object):
                 elif isinstance(self.technology[mseg_type], list):
                     self.technology[mseg_type] = [
                         t for t in self.technology[mseg_type] if
-                        'all ' not in t]
+                        ('all ' not in t and t != 'all')]
                 else:
                     self.technology[mseg_type] = [self.technology[mseg_type]]
 
@@ -5844,7 +5989,8 @@ class Measure(object):
                                  t in self.handyvars.in_all_map["technology"][
                                  b][self.technology_type[mseg_type]][f][e] if
                                  t not in self.technology[mseg_type] and
-                                 (map_tech_orig == "all" or any([
+                                 (map_tech_orig == "all" or
+                                  map_tech_orig == ["all"] or any([
                                      e in torig for torig in map_tech_orig if
                                      'all ' in torig])) or e in map_tech_orig]
 
