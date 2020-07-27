@@ -733,14 +733,14 @@ class UsefulVars(object):
                     x for x in sum_days if wknd_day_flags[(x - 1)] == 1]
                 # Winter days of year
                 wint_days = (list(
-                            range(1, 60)) + list(range(335, 366)))
+                            range(1, 91)) + list(range(335, 366)))
                 wint_days_wkdy = [
                     x for x in wint_days if wknd_day_flags[(x - 1)] != 1]
                 wint_days_wknd = [
                     x for x in wint_days if wknd_day_flags[(x - 1)] == 1]
                 # Intermediate days of year
                 inter_days = (list(
-                            range(60, 152)) + list(range(274, 335)))
+                            range(91, 152)) + list(range(274, 335)))
                 inter_days_wkdy = [
                     x for x in inter_days if wknd_day_flags[(x - 1)] != 1]
                 inter_days_wknd = [
@@ -1503,7 +1503,6 @@ class Measure(object):
                 css_dict = {}
                 # Find all unique end uses in the shape data
                 euses = numpy.unique(css_dat["End_Use"])
-
                 # Loop through all end uses in the data
                 for eu in euses:
                     # Handle case where end use names in the data are
@@ -1545,6 +1544,16 @@ class Measure(object):
                         # baseline load shapes file
                         if bd_key == "RetailStandAlone":
                             bd_key = "RetailStandalone"
+                        # Account for possible use of MediumOffice naming
+                        # in savings shape CSV, vs. MediumOfficeDetailed in
+                        # Scout's baseline load shapes file
+                        elif bd_key == "MediumOffice":
+                            bd_key = "MediumOfficeDetailed"
+                        # Account for possible use of MediumOffice naming
+                        # in savings shape CSV, vs. MediumOfficeDetailed in
+                        # Scout's baseline load shapes file
+                        elif bd_key == "LargeOffice":
+                            bd_key = "LargeOfficeDetailed"
                         # Initialize dict under the current end use and
                         # building type keys
                         css_dict[eu_key][bd_key] = {}
@@ -1578,6 +1587,11 @@ class Measure(object):
                             # shapes for the current climate zone
                             sys_v = numpy.unique(
                                 css_dat_eu_bldg_cz["Net_Load_Version"])
+                            # If "Net_Load_Version" column is blank, set unique
+                            # net load versions to 1
+                            if len(sys_v) == 0 or (
+                                    len(sys_v) == 1 and sys_v[0] == -1):
+                                sys_v = [1]
                             for sv in sys_v:
                                 v_key = "set " + str(sv)
                                 css_dict[eu_key][bd_key][cz_key][v_key] = \
@@ -4175,7 +4189,20 @@ class Measure(object):
                                 range(start_stop_dy[0] - 1, start_stop_dy[1]))
                         # Error sets applicable day range to the full year
                         except TypeError:
-                            applicable_days = range(365)
+                            # Assume two day ranges are specified
+                            try:
+                                # Start/stop set 1
+                                start_1 = start_stop_dy[0][0]
+                                stop_1 = start_stop_dy[1][0]
+                                # Start/stop set 2
+                                start_2 = start_stop_dy[0][1]
+                                stop_2 = start_stop_dy[1][1]
+                                # Patch together two day ranges
+                                applicable_days = list(
+                                    range(start_1 - 1, stop_1)) + list(
+                                    range(start_2 - 1, stop_2))
+                            except TypeError:
+                                applicable_days = range(365)
                     except (TypeError, KeyError):
                         applicable_days = range(365)
 
