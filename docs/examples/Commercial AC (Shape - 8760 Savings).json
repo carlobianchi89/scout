@@ -1,15 +1,9 @@
 {
-  "name": "Commercial AC (Shape)",
-  "time_sensitive_valuation": {
+  "name": "Commercial AC (Shape - 8760 Savings)",
+  "tsv_features": {
       "shape": {
-        "custom": [
-            0.795398312, 0.700814216, 0.619305406, 0.56054921,
-            0.528589128, 0.523419779, 0.543541035, 0.583588151,
-            0.631368709, 0.672636809, 0.698928201, 0.710255076,
-            0.713134087, 0.71775213, 0.766065772, 0.766065772,
-            0.802987921, 0.850260722, 0.90480515, 0.957987688,
-            0.995280578, 1, 0.962613938, 0.888721644]}},
-  "time_sensitive_valuation_source": {
+        "custom_annual_savings": "sample_8760.csv"}},
+  "tsv_source": {
     "notes": "Hypothetical time sensitive valuation information, not tied to a specific source",
     "source_data": [{
       "title": "",
@@ -18,8 +12,8 @@
       "year": 0,
       "pages": 0,
       "URL": ""}]},
-  "climate_zone": "all",
-  "bldg_type": "all commercial",
+  "climate_zone": ["ERCT", "CAMX"],
+  "bldg_type": "large office",
   "structure_type": "all",
   "end_use": "cooling",
   "fuel_type": "electricity",
