@@ -90,7 +90,7 @@ Applicable baseline market
 
 The applicable baseline market parameters specify the climate zones, building types, structure types, end uses, fuel types, and specific technologies for the ECM. 
 
-The climate zone(s) can be given as a single string, if only one climate zone applies, or as a list if a few climate zones apply. The climate zone entry options are outlined in the :ref:`ecm-baseline_climate-zone` section, and formatting details are in the :ref:`applicable section <json-climate_zone>` of the JSON schema. If the ECM is suitable for all climate zones, the shorthand string ``"all"`` can be used in place of a list of all of the climate zone names. These shorthand terms are discussed further in the :ref:`ecm-features-shorthand` section. 
+The climate zone(s) can be given as a single string, if only one climate zone applies, or as a list if a few climate zones apply. The climate zone entry options are outlined in the :ref:`ecm-baseline_climate-zone` and :ref:`ecm-baseline_climate-zone-alt` sections, and formatting details are in the :ref:`applicable section <json-climate_zone>` of the JSON schema. If the ECM is suitable for all climate zones, the shorthand string ``"all"`` can be used in place of a list of all of the climate zone names. These shorthand terms are discussed further in the :ref:`ecm-features-shorthand` section. 
 
 LED troffers can be installed in buildings in any climate zone, and for convenience, the available shorthand term will be used in place of a list of all of the climate zone names. ::
 
@@ -1121,20 +1121,104 @@ To run the pre-processing script |html-filepath| ecm_prep.py\ |html-fp-end|, ope
    cd Documents/projects/scout-run_scheme
    python3 ecm_prep.py
 
-.. tip::
-   By default, ECMs are processed and yield results measured in primary, or source, energy, and the site-source conversion is calculated using the fossil fuel equivalence method. ECM processing can be switched to a site energy basis with the optional flag ``--site_energy`` and can be switched to the captured energy method for converting from site to source energy with the flag ``--captured_energy``. For example, ``python3 ecm_prep.py --captured-energy``. Further details on the difference between the fossil fuel equivalence and captured energy methods for calculating site-source conversion factors can be found in the DOE report `Accounting Methodology for Source Energy of Non-Combustible Renewable Electricity Generation`_.
-
-.. _Accounting Methodology for Source Energy of Non-Combustible Renewable Electricity Generation: https://www.energy.gov/sites/prod/files/2016/10/f33/Source%20Energy%20Report%20-%20Final%20-%2010.21.16.pdf
-
-.. tip::
-   Using the optional flag ``--verbose`` (i.e., ``python3 ecm_prep.py --verbose``) will print all warning messages triggered during ECM preparation to the console.
-
 As each ECM is processed by |html-filepath| ecm_prep.py\ |html-fp-end|, the text "Updating ECM" and the ECM name are printed to the command window, followed by text indicating whether the ECM has been updated successfully. There may be some additional text printed to indicate whether the installed cost units in the ECM definition were converted to match the desired cost units for the analysis. If any exceptions (errors) occur, the module will stop running and the exception will be printed to the command window with some additional information to indicate where the exception occurred within |html-filepath| ecm_prep.py\ |html-fp-end|. The error message printed should provide some indication of where the error occurred and in what ECM. This information can be used to narrow the troubleshooting effort.
 
 If |html-filepath| ecm_prep.py |html-fp-end| runs successfully, a message with the total runtime will be printed to the console window. The names of the ECMs updated will be added to |html-filepath| run_setup.json\ |html-fp-end|, a file that indicates which ECMs should be included in :ref:`the analysis <tuts-analysis>`. The total baseline and efficient energy, |CO2|, and cost data for those ECMs that were just added or revised are added to the |html-filepath| ./supporting_data/ecm_competition_data |html-fp-end| folder, where there appear separate compressed files for each ECM. High-level summary data for all prepared ECMs are added to the |html-filepath| ecm_prep.json |html-fp-end| file in the |html-filepath| ./supporting_data |html-fp-end| folder. These files are then used by the ECM competition routine, outlined in :ref:`Tutorial 4 <tuts-analysis>`.
 
+.. tip::
+   The format of |html-filepath| ecm_prep.json |html-fp-end| is a list of dictionaries, with each dictionary including one ECM's high-level summary data. Use the ``name`` key in these ECM summary data dictionaries to find information for a particular ECM of interest in this file.
+
 If exceptions are generated, the text that appears in the command window should indicate the general location or nature of the error. Common causes of errors include extraneous commas at the end of lists, typos in or completely missing keys within an ECM definition, invalid values (for valid keys) in the specification of the applicable baseline market, and units for the installed cost or energy efficiency that do not match the baseline cost and efficiency data in the ECM.
 
+.. _tuts-2-cmd-opts:
+
+Additional preparation options
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Users may include a range of additional options alongside the |html-filepath| ecm_prep.py\ |html-fp-end| command that modify default ECM preparation settings.
+
+
+**Windows** ::
+
+   py -3 ecm_prep.py <additional option 1> <additional option 2> ... <additional option N>
+
+**Mac** ::
+
+   python3 ecm_prep.py <additional option 1> <additional option 2> ... <additional option N>
+
+The additional ECM preparation options are described further here.
+
+
+Alternate regions
+*****************
+
+``--alt_regions`` allows the user to switch the regional breakout of baseline data and ECM results from the default AIA climate regions. When this option is specified, the user will be prompted to select the desired alternate regional breakout upon running |html-filepath| ecm_prep.py\ |html-fp-end|. 
+
+.. note::
+   Currently, the only supported alternative regional breakout is the U.S. Electricity Information Administration (EIA) 2019 Electricity Market Module (EMM) regions (see the :ref:`ecm-baseline_climate-zone-alt` section for details regarding EMM region names.)
+
+Site energy
+***********
+
+``--site_energy`` prepares ECM markets and impacts in terms of site energy use, rather than in terms of primary (or source) energy use as in the default ECM preparation.
+
+Captured energy
+***************
+
+``--captured_energy`` prepares ECM markets and impacts with site-source energy conversion factors calculated using the `captured energy method`_, rather than with the fossil fuel equivalence method as in the default ECM preparation.
+
+Persistent relative performance
+*******************************
+
+``--rp_persist`` calculates the market entry energy performance of each ECM being prepared relative to its comparable baseline technology, and maintains this relative energy performance across the full modeling time horizon. For example, if ECMs are 10% more efficient than comparable baseline technologies at market entry, they will still be 10% more efficient than comparable baseline technologies by the end of the modeling time horizon.
+
+Public health benefits
+**********************
+
+``--health_costs`` adds low and high estimates of the public health cost benefits of avoided fossil electricity generation from the deployment of each ECM being prepared. The low and high public health cost benefits estimates are drawn from the "Uniform EE - low estimate, 7% discount" and "Uniform EE - high estimate, 3% discount" cases in the `U.S. Environmental Protection Agency (EPA) report`_ "Public Health Benefits per kWh of Energy Efficiency and Renewable Energy in the United States: a Technical Report". [#]_ [#]_
+
+.. note::
+   Public health cost adders are broken out by EMM region; thus, the ``--alt_regions`` option must be set alongside the ``--health_costs`` option, and EMM should be selected as the alternate regional breakout when prompted upon running |html-filepath| ecm_prep.py\ |html-fp-end|. If regions are not set to EMM in this case, the code will do so automatically while warning the user. 
+
+.. note::
+   When ECMs are prepared with the public health cost adder, three versions of the ECM will be produced: 1) the ECM prepared according to defaults, *without* health cost adders, 2) a version of the the ECM with a low public health cost adder ``<ECM Name> - PHC-EE (low)``, and 3) a version of the ECM with a high public health cost adder ``<ECM Name - PHC-EE (high)``. Since the EPA `report`_ estimates public health benefits based on the current fossil fuel generation mix, **users are advised against retaining any results for ECMs prepared with public health cost adders beyond the year 2025**. 
+
+Time sensitive valuation metrics
+********************************
+
+``--tsv_metrics`` assesses and reports out ECM load impacts during pre-defined sub-annual time slices, rather than impacts on annual loads as in the default ECM preparation. Time slice settings are based on a `reference year`_. When this option is specified, the user will be prompted to define the characteristics of the intended time sensitive valuation metric upon running |html-filepath| ecm_prep.py\ |html-fp-end|. Time sensitive valuation metrics are defined by several characteristics, listed here.
+
+* *Type of time sensitive metric desired*. The reported metric may represent change in energy use across multiple hours (e.g., kWh, GWh, TWh) or change in power per hour (e.g., kW, GW, TW).
+* *Daily hour range to restrict to*. The time slice may focus on all 24 hours of a day; on a daily period of peak demand on the electric grid (e.g., 4-8PM); or on a daily period of low demand on the electric grid (e.g., 12AM-4AM).
+* *Basis for determining hour range*. Periods of peak and low demand are determined using system-level load profiles for a representative set of `EMM regions`_. These profiles and associated periods may be based on *total* system demand, or total system demand *net* renewable energy generation. [#]_
+* *Season of focus*. The time slice may focus on one of three seasons: summer (Jun-Sep), winter (Dec-Mar), and intermediate (Oct-Nov, Apr-May).
+* *Calculation type*. The reported metric may represent a sum or average of loads across multiple hours (when reporting a change in energy use); or a maximum or average hourly load (when reporting a change in power).
+* *Day type of focus*. The time slice may focus on weekdays, weekends, or all days of the week.
+
+.. _EMM regions: https://www.eia.gov/outlooks/aeo/pdf/f2.pdf
+
+.. note::
+   When the ``--tsv_metrics`` option is used, all data prepared for the ECM and written out to |html-filepath| ./supporting_data/ecm_competition_data |html-fp-end| and |html-filepath| ./supporting_data/ecm_prep.json |html-fp-end| will reflect the specific time slice of interest, rather than the default annual outcomes.   
+
+.. note::
+   Data needed to support evaluation of TSV metrics are broken out by EMM region; thus, the ``--alt_regions`` option must be set alongside the ``--tsv_metrics`` option, and EMM should be selected as the alternate regional breakout when prompted upon running |html-filepath| ecm_prep.py\ |html-fp-end|. If regions are not set to EMM in this case, the code will do so automatically while warning the user. 
+
+Sector-level hourly energy loads
+********************************
+
+``--sect_shapes`` reports the hourly energy use (in MMBtu) attributable to the portion of the building stock the ECM applies to in a given adoption scenario, EMM region, and projection year, both with and without the measure applied. These hourly energy loads are reported for all 8760 hours of a year that corresponds to a `reference year`_.
+
+.. note::
+   Sector-level 8760 load data for an ECM are written to the ``sector_shapes`` key within the given ECM's dictionary of summary data in |html-filepath| ./supporting_data/ecm_prep.json |html-fp-end|. The 8760 load data are nested in another dictionary under the ``sector_shapes`` key according to the following key hierarchy: adoption scenario (``Technical potential`` or ``Max adoption potential``) -> EMM region (see :ref:`ecm-baseline_climate-zone-alt` for names) -> summary projection year (``2020``, ``2030``, ``2040`` or ``2050``) -> efficiency scenario (``baseline`` or ``efficient``). The terminal values at the end of each key chain will be a list with 8760 elements. 
+
+Verbose mode
+************
+
+``--verbose`` prints all warning messages triggered during ECM preparation to the console.
+
+.. _captured energy method: https://www.energy.gov/sites/prod/files/2016/10/f33/Source%20Energy%20Report%20-%20Final%20-%2010.21.16.pdf
+.. _U.S. Environmental Protection Agency (EPA) report: https://www.epa.gov/sites/production/files/2019-07/documents/bpk-report-final-508.pdf
+.. _report: https://www.epa.gov/sites/production/files/2019-07/documents/bpk-report-final-508.pdf
 
 .. _tuts-ecm-list-setup:
 
@@ -1231,6 +1315,9 @@ Tutorial 4: Running an analysis
 -------------------------------
 
 Once the ECMs have been pre-processed following the steps in :ref:`Tutorial 2 <tuts-2>`, the uncompeted and competed financial metrics and energy, |CO2|, and cost savings can be calculated for each ECM. Competition determines the portion of the applicable baseline market affected by ECMs that have identical or partially overlapping applicable baseline markets. The calculations and ECM competition are performed by |html-filepath| run.py |html-fp-end| following the outline in :ref:`Step 3 <analysis-step-3>` of the analysis approach section.
+
+.. note::
+   ECMs prepared via |html-filepath| ecm_prep.py\ |html-fp-end| with the additional options ``--site_energy``, ``--captured_energy``, ``--alt_regions``, ``--tsv_metrics``, and/or ``--health_costs`` as outlined in :ref:`tuts-2-cmd-opts` may only be simulated in  |html-filepath| run.py |html-fp-end| alongside other ECMs that were prepared with the same options and option settings. If discrepancies are found in ECM preparation settings across ECMs in the active list, |html-filepath| run.py |html-fp-end| execution will be halted and the user will see an error message.    
 
 To run the uncompeted and competed ECM calculations, open a Terminal window (Mac) or command prompt (Windows) if one is not already open. If you're working in a new command window, navigate to the Scout project directory (shown with the example location |html-filepath| ./Documents/projects/scout-run_scheme\ |html-fp-end|). If your command window is already set to that folder/directory, the first line of the commands are not needed. Finally, run |html-filepath| run.py |html-fp-end| as a Python script.
 
@@ -1396,6 +1483,11 @@ In each results tab, rows 2-22 include results summed across the entire ECM port
 .. [#] Acceptable domains include eia.gov, doe.gov, energy.gov, data.gov, energystar.gov, epa.gov, census.gov, pnnl.gov, lbl.gov, nrel.gov, sciencedirect.com, costar.com, and navigantresearch.com.
 .. [#] The retrofit rate assumption only affects the :ref:`Maximum Adoption Potential <overview-adoption>` scenario results, in which realistic equipment turnover dynamics are considered.
 .. [#] The size parameter specifies the number of samples to draw from the specified distribution. The number of samples is preset to be the same for all ECMs to ensure consistency. 
-.. [#] If the warning "there is no package called 'foo'," where "foo" is a replaced by an actual package name, appears in the R Console window, try running the script again. If the warning is repeated, the indicated package should be added manually. From the Packages menu, (Windows) select Install package(s)... or (Mac) from the Packages & Data menu, select Package Installer and click the Get List button in the Package Installer window. If prompted, select a repository from which to download packages. On Windows, select the named package (i.e., "foo") from the list of packages that appears. On a Mac, search in the list for the named package (i.e., "foo"), click the "Install Dependencies" checkbox, and click the "Install Selected" button. When installation is complete, close the Package Installer window.
+.. [#] With this option, low/high estimates of public health benefits are added directly to electricity costs, yielding greater savings for ECMs that are able to reduce electricity use.
+.. [#] The EPA report also includes low and high estimates of the public health benefits of avoided electricity generation from energy efficiency during the peak hours of 12-6 PM. While these estimates are ultimately very similar to the "Uniform EE" estimates and not included in Scout's health cost adders, they are summarized by region alongside the "Uniform EE" estimates in the file |html-filepath| ./supporting_data/convert_data/epa_costs.csv |html-fp-end|.
+.. [#] Total and net peak and low demand hour ranges by season, EMM region, and projection year are summarized in the files |html-filepath| ./supporting_data/tsv_data/tsv_hrs_net.csv |html-fp-end| and |html-filepath| ./supporting_data/tsv_data/tsv_hrs_tot.csv |html-fp-end|. The default periods assumed when a user adds the ``--tsv_metrics`` option reflect the projection year 2050 and a representative subset of system load shapes from 14 EMM regions: FRCC, AZNM, SRVC, SPSO, ERCOT, CAMX, NYCW, SPNO, NWPP, NYUP, RFCW, RMPA, MROW, NEWE. For a graphical understanding of the representative set of *net* system load shapes and peak/low demand period definitions used to support the ``--tsv_metrics`` option, refer to `this plot`_.
 .. [#] Building class corresponds to the four combinations of :ref:`building type <json-bldg_type>` and :ref:`structure type <json-structure_type>`.
 .. [#] When ECMs are competed against each other, demand-side heating and cooling ECMs that improve the performance of the building envelope reduce the energy required to meet heating and cooling needs (supply-side energy), and that reduction in energy requirements for heating and cooling is reflected in a reduced baseline for supply-side heating and cooling ECMs. At the same time, supply-side heating and cooling ECMs that are more efficient reduce the energy used to provide heating and cooling services, thus reducing the baseline energy for demand-side ECMs. The description of :ref:`ECM competition <ecm-competition>` in Step 3 of the analysis approach section includes further details regarding supply-side and demand-side heating and cooling energy use balancing.
+.. .. [#] If the warning "there is no package called 'foo'," where "foo" is a replaced by an actual package name, appears in the R Console window, try running the script again. If the warning is repeated, the indicated package should be added manually. From the Packages menu, (Windows) select Install package(s)... or (Mac) from the Packages & Data menu, select Package Installer and click the Get List button in the Package Installer window. If prompted, select a repository from which to download packages. On Windows, select the named package (i.e., "foo") from the list of packages that appears. On a Mac, search in the list for the named package (i.e., "foo"), click the "Install Dependencies" checkbox, and click the "Install Selected" button. When installation is complete, close the Package Installer window.
+
+.. _this plot: https://drive.google.com/file/d/1SlXuazUj0-3S8ax7c-Lpe6niv6n87KSl/view?usp=sharing

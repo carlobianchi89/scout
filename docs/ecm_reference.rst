@@ -32,8 +32,8 @@ For some keys, there are shorthand summary values that can be used when all or a
 
 .. _ecm-baseline_climate-zone:
 
-Climate zone (default)
-~~~~~~~~~~~~~~~~~~~~~~
+Climate zone (default regions)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 |tooltip| AIA_CZ1 |chunk-b| AIA Climate Zone 1 |close|, |tooltip| AIA_CZ2 |chunk-b| AIA Climate Zone 2 |close|, |tooltip| AIA_CZ3 |chunk-b| AIA Climate Zone 3 |close|, |tooltip| AIA_CZ4 |chunk-b| AIA Climate Zone 4 |close|, |tooltip| AIA_CZ5 |chunk-b| AIA Climate Zone 5 |close|; all
 
@@ -41,8 +41,13 @@ Climate zone (default)
 
    Map of American Institute of Architects (AIA) climate zones for the continental U.S., Alaska, and Hawaii.
 
-Climate zone (|html-filepath| ecm_prep.py\ |html-fp-end| --alt_regions -> EMM)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. _ecm-baseline_climate-zone-alt:
+
+Alternate regions
+~~~~~~~~~~~~~~~~~
+
+.. note::
+   These alternate regions are only permitted when |html-filepath| ecm_prep.py\ |html-fp-end| is executed with the ``--alt_regions`` option, as described in :ref:`tuts-2-cmd-opts`. 
 
 ERCT, FRCC, MROE, MROW, NEWE, NYCW, NYLI, NYUP, RFCE, RFCM, RFCW, SRDA, SRGW, SRSE, SRCE, SRVC, SPNO, SPSO, AZNM, CAMX, NWPP, RMPA; all
 

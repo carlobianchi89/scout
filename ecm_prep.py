@@ -1006,7 +1006,7 @@ class UsefulVars(object):
                                      peak_take_cz["InterPeakEndHr"][0] + 1)),
             "take range": list(range(peak_take_cz["InterTakeStartHr1"][0],
                                      peak_take_cz["InterTakeEndHr1"][0] + 1))}
-        # Handle cases where winter take periods cover two non-contiguous time
+        # Handle cases where winter low demand periods cover two non-contiguous time
         # segments (e.g., 2-6AM, 10AM-2PM)
         if not numpy.isnan(peak_take_cz["WinterTakeStartHr2"][0]):
             wint_peak_take["take range"].extend(list(
@@ -7796,11 +7796,18 @@ def main(base_dir):
     # options require baseline data to be resolved by EMM region)
     if regions != "EMM" and any([
             x is True for x in [opts.tsv_metrics, opts.sect_shapes]]):
-        raise ValueError(
-            "'--tsv_metrics' and '--sect_shapes' options are only valid "
-            "when EIA Electricity Market Module (EMM) regions are selected as "
-            "analysis regions. To address this issue, add the '--alt_regions' "
-            "option and select EMM regions when prompted.")
+        opts.alt_regions, regions = [True, "EMM"]
+        # Craft custom warning message based on the option provided
+        if all([x is True for x in [opts.tsv_metrics, opts.sect_shapes]]):
+            warn_text = "tsv metrics and sector-level 8760 savings shapes"
+        elif opts.tsv_metrics is True:
+            warn_text = "tsv metrics"
+        else:
+            warn_text = "sector-level 8760 load shapes"
+        warnings.warn(
+            "WARNING: Analysis regions were set to EMM to allow " +
+            warn_text + ": ensure that ECM data reflect these EMM regions "
+            "(and not the default AIA regions)")
 
     # If a user wishes to change the outputs to metrics relevant for
     # time-sensitive efficiency valuation, prompt them for information needed
@@ -7815,14 +7822,15 @@ def main(base_dir):
         # Determine the hourly range to restrict results to (24h, peak, take)
         hours = input(
             "Enter the daily hour range to restrict to (1 = all hours, "
-            "2 = peak period hours, 3 = take period hours): ")
+            "2 = peak demand period hours, 3 = low demand period hours): ")
 
         # If peak/take hours are chosen, determine whether total or net
         # system shapes should be used to determine the hour ranges
         if hours == '2' or hours == '3':
             sys_shape = input(
-                "Enter the basis for determining peak or take hour ranges: "
-                "1 = total system load, 2 = total system load net renewables: "
+                "Enter the basis for determining peak or low demand hour "
+                "ranges: 1 = total system load, 2 = total system load net "
+                "renewables: "
                 )
         else:
             sys_shape = '0'
@@ -7851,8 +7859,8 @@ def main(base_dir):
             # Sum/average energy change across take hours
             elif hours == '3':
                 calc_type = input(
-                    "Enter calculation type (1 = sum across take "
-                    "hours, 2 = daily take period average): ")
+                    "Enter calculation type (1 = sum across low demand "
+                    "hours, 2 = daily low demand period average): ")
         # Power output case (single hour)
         else:
             # Max/average power change across all hours
@@ -7868,8 +7876,8 @@ def main(base_dir):
             # Max/average power change across take hours
             elif hours == '3':
                 calc_type = input(
-                    "Enter calculation type (1 = peak day, take period "
-                    "maximum, 2 = daily take period hourly average): ")
+                    "Enter calculation type (1 = peak day, low demand period "
+                    "maximum, 2 = daily low demand period hourly average): ")
         # Determine the day type to average over (if needed)
         if output_type == '1' or calc_type == '2':
             day_type = input(
