@@ -7882,7 +7882,7 @@ def main(base_dir):
         if output_type == '1' or calc_type == '2':
             day_type = input(
                 "Enter day type to calculate across (1 = all days, "
-                "2 = weekdays, 3 = weekends: ")
+                "2 = weekdays, 3 = weekends): ")
         else:
             day_type = "0"
 

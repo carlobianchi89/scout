@@ -331,7 +331,7 @@ In certain cases, ECMs might affect baseline energy loads differently depending 
 .. _tsv-ecm-diagram:
 .. figure:: images/Shed_Shift_Shape_Diag.*
 
-   Time sensitive ECM features include (from left): load shedding, where an ECM reduces loads during a certain daily hour range; load shifting, where load is reduced during one daily hour range and increased during another daily hour range; and load shaping, where load may be increased or decreased for any hour of the day/year in accordance with a custom hourly load savings shape.
+   Time sensitive ECM features include (from left): load shedding, where an ECM reduces load during a certain daily hour range; load shifting, where load is reduced during one daily hour range and increased during another daily hour range; and load shaping, where load may be increased or decreased for any hour of the day/year in accordance with a custom hourly load savings shape.
 
 Such time sensitive ECM features are specified using the :ref:`json-tsv_features` parameter, which adheres to the following general format: ::
 
@@ -406,7 +406,7 @@ Each time sensitive ECM feature is further described below with illustrative exa
    Accordingly, when preparing an ECM with time sensitive features, the user should ensure that:
 
    1) the ECM's :ref:`json-fuel_type` parameter is set to ``"electricity"``, and the ECM's :ref:`json-fuel_switch_to` parameter is set to ``null``;
-   2) |html-filepath| ecm_prep.py\ |html-fp-end| is executed with the ``--alt_regions`` option specified; and
+   2) |html-filepath| ecm_prep.py\ |html-fp-end| is executed with the ``--alt_regions`` :ref:`option specified <tuts-2-cmd-opts>`; and
    3) EMM is subsequently selected as the alternate regional breakout.
 
    Users are also encouraged to use the ``--site_energy`` option when executing |html-filepath| ecm_prep.py\ |html-fp-end| for ECMs with time sensitive features, as utility planners are often most interested in the change in the electricity *demand* (rather than generation) that may result from ECM deployment.
@@ -428,7 +428,7 @@ The first type of time sensitive ECM feature sheds (reduces) a certain percentag
         "start_hour": 12, "stop_hour": 20}},
     ...}
 
-In this example, the ECM sheds 10% of electricity demand between the hours of 12PM-8PM on all summer days (Jun-Sep, days 152-173 in the `reference year`_).
+In this example, the ECM sheds 10% of electricity demand between the hours of 12--8 PM on all summer days (Jun--Sep, days 152--173 in the `reference year`_).
 
 .. tip::
    Two day ranges may be provided by specifying the parameters :ref:`json-start_day` and :ref:`json-stop_day` as lists with two elements: ::
@@ -438,7 +438,7 @@ In this example, the ECM sheds 10% of electricity demand between the hours of 12
        "stop_day": [91, 365],
        ...}
 
-   In this example, the ECM features will be applied to all winter months (Dec, days 335-365; and Jan-Mar, days 1-90 in the `reference year`_).
+   In this example, the ECM features will be applied to all winter months (Dec, days 335--365; and Jan--Mar, days 1--90 in the `reference year`_).
 
    Moreover, if an ECM feature applies to *all* days of the year, the parameters :ref:`json-start_day` and :ref:`json-stop_day` need not be provided.
 
@@ -463,7 +463,7 @@ As with the shed feature, the :ref:`json-start_day` and :ref:`json-stop_day` and
         "start_hour": 12, "stop_hour": 20},
     ...} 
 
-In this example, the ECM shifts 10% of electricity demand between the hours of 12PM--8PM to 12 hours earlier (e.g., to 12AM--8AM) on all summer days (Jun-Sep, days 152-173 in the `reference year`_).
+In this example, the ECM shifts 10% of electricity demand between the hours of 12--8 PM to 12 hours earlier (e.g., to 12--8 AM) on all summer days (Jun--Sep, days 152--173 in the `reference year`_).
 
 .. _ecm-example-com-shift:
 
@@ -494,7 +494,7 @@ In the first case, custom hourly savings for a typical day are defined in the :r
           1.9, 2, 1, 0.5, 0.75, 0.75, 0.75, 0.75, 0.5, 0.5, 0.5, 0.5]}},
     ...}
 
-In this example, the ECM reduces hourly loads between 50-200% on all summer days (day 152 to 174 in the `reference year`_). Note that savings fractions may be specified as greater than 1 to represent the effects of on-site energy generation on a building's overall load profile.
+In this example, the ECM reduces hourly loads between 50--200% on all summer days (days 152--174 in the `reference year`_). Note that savings fractions may be specified as greater than 1 to represent the effects of on-site energy generation on a building's overall load profile.
 
 .. _ecm-example-com-shape-day:
 
@@ -510,9 +510,54 @@ In the second case, the custom savings shape represents hourly load impacts for 
 
 In this example, the supporting CSV file path is |html-filepath| ./ecm_definitions/energyplus_data/savings_shapes/sample_8760.csv. |html-fp-end| The CSV file must include the following data (by column name):
 
-* *Hour of Year*. Hour of the simulated year, spanning 1 to 8760 (note: simulated year must match the `reference year`_ in terms of starting day of the week (Sunday) and total number of days (365)).
+* *Hour of Year*. Hour of the simulated year, spanning 1 to 8760. The simulated year must match the `reference year`_ in terms of starting day of the week (Sunday) and total number of days (365).
 * *Climate Zone*. Applicable `ASHRAE 90.1-2016 climate zone`_ (see Table 2); currently, only the 14 contiguous U.S. climate zones (2A through 7) are supported.
-* *Net Load Version*. For climates 3A, 4A, 5A, and 6A, this column indicates which of the two representative `EIA Electricity Market Module (EMM)`_ net utility system load `profiles`_ for those climates is used to determine energy flexibility measure characteristics; for all other climates and for energy efficiency measures, set to 1.
+* *Net Load Version*. For climate zones 3A, 4A, 5A, and 6A, this column indicates which of the two representative `EIA Electricity Market Module (EMM)`_ net utility system load `profiles`_ for those climate zones is used to determine energy flexibility measure characteristics; for all other climate zones and for energy efficiency measures, set to 1. :numref:`tsv-nl-tab` summarizes default periods of net peak and low system demand for each ASHRAE climate zone in the summer (S) and winter (W); the "Version" column of :numref:`tsv-nl-tab` indicates cases where two system load profiles are used to define these peak/low demand periods for a given climate zone.
+
+.. _tsv-nl-tab:
+.. table:: Net peak and low system demand periods by ASHRAE climate zone in summer (S) and winter (W).
+
+   +---------+---------+----------+----------+---------+----------+----------+ 
+   | Climate | Version | EMM Reg. | Peak (S) | Peak (W)| Low (S)  | Low (W)  |
+   +=========+=========+==========+==========+=========+==========+==========+ 
+   | 2A      | 1       | FRCC     | 4-8PM    | 5-9PM   | 7-11AM   | 10AM-4PM |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 2B      | 1       | AZNM     | 4-8PM    | 5-9PM   | 12-9AM   | 12-6AM   |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 3A      | 1       | SRVC     | 6-10PM   | 5-9PM   | 12-10AM  | 12-4AM   |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 3A      | 2       | SPSO     | 5-9PM    | 5-9PM   | 8AM-12PM | 9AM-4PM  |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 3B      | 1       | ERCT     | 5-9PM    | 7-11PM  | 2AM-9AM  | 12AM-7AM |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 3C      | 1       | CAMX     | 6-10PM   | 5-9PM   | 8AM-3PM  | 8AM-4PM  |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 4A      | 1       | NYCW     | 11AM-3PM | 4-8PM   | 12AM-6AM | 12AM-7AM |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 4A      | 2       | SPNO     | 5-9PM    | 5-9PM   | 7AM-12PM | 9AM-4PM  |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 4B      | 1       | AZNM     | 4-8PM    | 5-9PM   | 12-9AM   | 12-6AM   |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 4C      | 1       | NWPP     | 4-8PM    | 5-9PM   | 12-6AM   | 12-5AM   |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 5A      | 1       | NYUP     | 7-11PM   | 5-9PM   | 12-6AM   | 12-6AM   |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 5A      | 2       | RFCW     | 1-5PM    | 6-10PM  | 12-7AM   | 12-7AM   |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 5B      | 1       | RMPA     | 4-8PM    | 5-9PM   | 12-8AM   | 12-6AM   |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 5C      | 1       | NWPP     | 4-8PM    | 5-9PM   | 12-6AM   | 12-5AM   |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 6A      | 1       | MROW     | 3-7PM    | 6-10PM  | 2-7AM    | 12-6AM   |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 6A      | 2       | NEWE     | 12-4PM   | 5-9PM   | 12-7AM   | 12-6AM   |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 6B      | 1       | NWPP     | 4-8PM    | 5-9PM   | 12-6AM   | 12-5AM   |
+   +---------+---------+----------+----------+---------+----------+----------+
+   | 7       | 1       | MROW     | 3-7PM    | 6-10PM  | 2-7AM    | 12-6AM   |
+   +---------+---------+----------+----------+---------+----------+----------+
+
+
 * *Building Type*. Applicable EnergyPlus building type; currently supported representative building types are:
    
     * SingleFamilyHome (`ResStock`_)
@@ -544,6 +589,9 @@ In this example, the supporting CSV file path is |html-filepath| ./ecm_definitio
 * *Measure Load*. Load (in kW) for given hour of year, climate zone, net load version, building type, and end use after measure application.
 * *Relative Savings*. Calculated as: (Hourly Measure Load - Hourly Baseline Load) / (Total Annual Baseline Load).
 
+
+
+
 .. _ecm-example-com-shape-yr:
 .. _sample-8760:
 
@@ -568,7 +616,7 @@ Finally, it is possible to define ECMs that combine multiple time sensitive feat
         "start_hour": 16, "stop_hour": 20}  
     ...}
 
-In this example, the first feature will represent baseline load shedding between the hours of 4-8 PM on all winter days, while the second feature will shift baseline loads occuring between 4-8 PM to the hours of 12-4 PM on all summer days.
+In this example, the first feature will represent baseline load shedding between the hours of 4--8 PM on all winter days, while the second feature will shift baseline loads occuring between 4--8 PM to the hours of 12--4 PM on all summer days.
 
 .. _ecm-example-com-multiple:
 
@@ -1137,7 +1185,6 @@ Additional preparation options
 
 Users may include a range of additional options alongside the |html-filepath| ecm_prep.py\ |html-fp-end| command that modify default ECM preparation settings.
 
-
 **Windows** ::
 
    py -3 ecm_prep.py <additional option 1> <additional option 2> ... <additional option N>
@@ -1186,14 +1233,14 @@ Public health benefits
 Time sensitive valuation metrics
 ********************************
 
-``--tsv_metrics`` assesses and reports out ECM load impacts during pre-defined sub-annual time slices, rather than impacts on annual loads as in the default ECM preparation. Time slice settings are based on a `reference year`_. When this option is specified, the user will be prompted to define the characteristics of the intended time sensitive valuation metric upon running |html-filepath| ecm_prep.py\ |html-fp-end|. Time sensitive valuation metrics are defined by several characteristics, listed here.
+``--tsv_metrics`` assesses and reports out ECM impacts on electric load during pre-defined sub-annual time slices, rather than impacts on annual energy use as in the default ECM preparation. Time slice settings are based on 2006 as the `reference year`_ for the purpose of defining the days of the week and number of days in the year. When this option is specified, the user will be prompted to define the characteristics of the intended time sensitive valuation metric upon running |html-filepath| ecm_prep.py\ |html-fp-end|. Time sensitive valuation metrics are defined by several characteristics, listed here.
 
-* *Type of time sensitive metric desired*. The reported metric may represent change in energy use across multiple hours (e.g., kWh, GWh, TWh) or change in power per hour (e.g., kW, GW, TW).
-* *Daily hour range to restrict to*. The time slice may focus on all 24 hours of a day; on a daily period of peak demand on the electric grid (e.g., 4-8PM); or on a daily period of low demand on the electric grid (e.g., 12AM-4AM).
+* *Type of time sensitive metric desired*. The reported metric can represent either change in energy use across multiple hours (e.g., kWh, GWh, TWh) or change in power per hour (e.g., kW, GW, TW).
+* *Daily hour range to restrict to*. The time slice can include all 24 hours of a day or be set to specific a daily period of peak demand on the electric grid (e.g., 4--8 PM) or low demand on the electric grid (e.g., 12--4 AM).
 * *Basis for determining hour range*. Periods of peak and low demand are determined using system-level load profiles for a representative set of `EMM regions`_. These profiles and associated periods may be based on *total* system demand, or total system demand *net* renewable energy generation. [#]_
-* *Season of focus*. The time slice may focus on one of three seasons: summer (Jun-Sep), winter (Dec-Mar), and intermediate (Oct-Nov, Apr-May).
-* *Calculation type*. The reported metric may represent a sum or average of loads across multiple hours (when reporting a change in energy use); or a maximum or average hourly load (when reporting a change in power).
-* *Day type of focus*. The time slice may focus on weekdays, weekends, or all days of the week.
+* *Season of focus*. The analysis can be limited to one of three seasons: summer (Jun--Sep), winter (Dec--Mar), or intermediate (Oct--Nov, Apr--May).
+* *Calculation type*. The reported metric can represent a sum or average of loads across multiple hours (when reporting a change in energy use); or a maximum or average hourly load (when reporting a change in power).
+* *Day type of focus*. The time slice can include all days of the week or be restricted to only weekdays or weekends.
 
 .. _EMM regions: https://www.eia.gov/outlooks/aeo/pdf/f2.pdf
 
@@ -1206,10 +1253,10 @@ Time sensitive valuation metrics
 Sector-level hourly energy loads
 ********************************
 
-``--sect_shapes`` reports the hourly energy use (in MMBtu) attributable to the portion of the building stock the ECM applies to in a given adoption scenario, EMM region, and projection year, both with and without the measure applied. These hourly energy loads are reported for all 8760 hours of a year that corresponds to a `reference year`_.
+``--sect_shapes`` modifies the results output to |html-filepath| ./supporting_data/ecm_prep.json |html-fp-end| to include, for each ECM, the hourly energy use (in MMBtu) attributable to the portion of the building stock the ECM applies to in a given adoption scenario, EMM region, and projection year, both with and without the measure applied. These hourly energy loads are reported for all 8760 hours of a year that corresponds to a `reference year`_.
 
 .. note::
-   Sector-level 8760 load data for an ECM are written to the ``sector_shapes`` key within the given ECM's dictionary of summary data in |html-filepath| ./supporting_data/ecm_prep.json |html-fp-end|. The 8760 load data are nested in another dictionary under the ``sector_shapes`` key according to the following key hierarchy: adoption scenario (``Technical potential`` or ``Max adoption potential``) -> EMM region (see :ref:`ecm-baseline_climate-zone-alt` for names) -> summary projection year (``2020``, ``2030``, ``2040`` or ``2050``) -> efficiency scenario (``baseline`` or ``efficient``). The terminal values at the end of each key chain will be a list with 8760 elements. 
+   Sector-level 8760 load data for an ECM are written to the "sector_shapes" key within the given ECM's dictionary of summary data in |html-filepath| ./supporting_data/ecm_prep.json |html-fp-end|. The 8760 load data are nested in another dictionary under the "sector_shapes" key according to the following key hierarchy: adoption scenario ("Technical potential" or "Max adoption potential") -> EMM region (see :ref:`ecm-baseline_climate-zone-alt` for names) -> summary projection year ("2020", "2030", "2040" or "2050") -> efficiency scenario ("baseline" or "efficient"). The terminal values at the end of each key chain will be a list with 8760 values. 
 
 Verbose mode
 ************
