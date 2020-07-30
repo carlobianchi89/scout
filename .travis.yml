@@ -6,33 +6,18 @@
 
 # See also: https://github.com/travis-ci/travis-ci/issues/2650
 
+# Updated based on Travis-CI implementing improved python
+# support and switching to xenial as default build environment
+# https://docs.travis-ci.com/user/languages/python/
+# https://blog.travis-ci.com/2019-08-07-extensive-python-testing-on-travis-ci
+
 language: python
 python:
-  - "3.5"
   - "3.6"
+  - "3.7"
+  - "3.8"
 
-# Enable 3.7 without globally enabling sudo and dist: xenial for other build jobs
-# This configuration is described in https://github.com/travis-ci/travis-ci/issues/9815#issue-336465122
-matrix:
-  include:
-    - python: 3.7
-      dist: xenial
-      sudo: true
-
-# Download and set up anaconda
 before_install:
-  - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-  - chmod +x miniconda.sh
-  - ./miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  # Update conda itself
-  - conda update --yes conda
-  # Get the PyPI numpy_financial package not available from Anaconda Cloud
-  # https://stackoverflow.com/questions/29286624/how-to-install-pypi-packages-using-anaconda-conda-command
-  - conda install --yes conda-build
-  - conda skeleton pypi numpy-financial
-  - conda build numpy-financial
-  - conda install --yes --use-local numpy-financial
   # Set up grunt by installing grunt-cli
   # and the dependencies listed in package.json
   - npm install -g grunt-cli
@@ -40,19 +25,11 @@ before_install:
 
 # Install packages
 install: 
-  - conda create --yes --use-local -n testenv python=$TRAVIS_PYTHON_VERSION numpy=1.15 scipy flake8 requests numpy-financial
-  - source activate testenv
+  - pip install -U pip
+  - pip install numpy==1.15 scipy flake8 requests numpy-financial
 
 # Run test(s)
 script: 
   - python3 -m unittest discover -p '*_test.py'
   - grunt travis -v
   - flake8 --exclude docs/conf.py --max-line-length=100
-
-# https://github.com/drivendataorg/concept-to-clinic/issues/69
-# As a bit more information, and related to #69 (comment), if you don't
-# need these git-lfs files during build time, it'd just be enough to add the
-# following to your .travis.yml to tell Travis not to fetch these assets
-# during git clone:
-git:
-  lfs_skip_smudge: true

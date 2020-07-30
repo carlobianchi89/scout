@@ -15,6 +15,7 @@ from functools import reduce  # forward compatibility for Python 3
 import operator
 from argparse import ArgumentParser
 from ast import literal_eval
+import zipfile
 
 
 class MyEncoder(json.JSONEncoder):
@@ -8086,6 +8087,11 @@ def main(base_dir):
                     "Error reading in '" +
                     handyfiles.msegs_in + "': " + str(e)) from None
         # Import baseline cost, performance, and lifetime data
+        bjs = path.join(base_dir, *handyfiles.msegs_cpl_in)
+        if regions == 'EMM':  # Extract compressed CPL EMM file first
+            bjszip = path.splitext(bjs)[0] + '.zip'
+            with zipfile.ZipFile(bjszip, 'r') as zip_ref:
+                zip_ref.extractall(path.dirname(bjs))
         with open(path.join(base_dir, *handyfiles.msegs_cpl_in), 'r') as bjs:
             try:
                 msegs_cpl = json.load(bjs)
