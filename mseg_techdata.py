@@ -1007,11 +1007,16 @@ def main():
             lt_skip_footer = 54
         else:
             lt_skip_footer = 52
-    else:
+    elif aeo_import_year == 2019:
         nlt_cp_skip_header = 2
         nlt_l_skip_header = 2
         lt_skip_header = 37
         lt_skip_footer = 52
+    else:
+        nlt_cp_skip_header = 2
+        nlt_l_skip_header = 2
+        lt_skip_header = 36
+        lt_skip_footer = 50
 
     # Instantiate objects that contain useful variables
     handyvars = UsefulVars()
