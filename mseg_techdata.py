@@ -40,7 +40,6 @@ class UsefulVars(object):
         self.json_out = 'cpl_res_cdiv.json'
         self.aeo_metadata = 'metadata.json'
 
-
 # Pre-specify the numpy field names to be used in importing the EIA
 # information on the cost performance, and lifetime of of non-lighting and
 # lighting technologies in the residential sector
@@ -992,53 +991,28 @@ def main():
     # Get import year specified by user (if any)
     aeo_import_year = parser.parse_args().year
 
-    # Specify the number of header and footer lines to skip based on the
-    # optional AEO year indicated by the user when this module is called
-    if aeo_import_year == 2015:
-        nlt_cp_skip_header = 20
-        nlt_l_skip_header = 19
-        lt_skip_header = 35
-        lt_skip_footer = 54
-    elif aeo_import_year in [2016, 2017, 2018]:
-        nlt_cp_skip_header = 25
-        nlt_l_skip_header = 20
-        lt_skip_header = 37
-        if aeo_import_year in [2016, 2017]:
-            lt_skip_footer = 54
-        else:
-            lt_skip_footer = 52
-    elif aeo_import_year == 2019:
-        nlt_cp_skip_header = 2
-        nlt_l_skip_header = 2
-        lt_skip_header = 37
-        lt_skip_footer = 52
-    else:
-        nlt_cp_skip_header = 2
-        nlt_l_skip_header = 2
-        lt_skip_header = 36
-        lt_skip_footer = 51
-
     # Instantiate objects that contain useful variables
     handyvars = UsefulVars()
     eiadata = EIAData()
+    skip = mseg.SkipLines(aeo_import_year=aeo_import_year)#aeo_import_year)
 
     # Import EIA non-lighting residential cost and performance data
     eia_nlt_cp = numpy.genfromtxt(eiadata.r_nlt_costperf, names=r_nlt_cp_names,
                                   dtype=None, comments=None,
-                                  skip_header=nlt_cp_skip_header,
+                                  skip_header=skip.nlt_cp_skip_header,
                                   encoding="latin1")
 
     # Import EIA non-lighting residential lifetime data
     eia_nlt_l = numpy.genfromtxt(eiadata.r_nlt_life, names=r_nlt_l_names,
                                  dtype=None, comments=None,
-                                 skip_header=nlt_l_skip_header,
+                                 skip_header=skip.nlt_l_skip_header,
                                  encoding="latin1")
 
     # Import EIA lighting residential cost, performance and lifetime data
     eia_lt = numpy.genfromtxt(eiadata.r_lt_all, names=r_lt_names,
                               dtype=None, comments=None,
-                              skip_header=lt_skip_header,
-                              skip_footer=lt_skip_footer,
+                              skip_header=skip.lt_skip_header,
+                              skip_footer=skip.lt_skip_footer,
                               encoding="latin1")
 
     # Establish the modeling time horizon based on metadata generated

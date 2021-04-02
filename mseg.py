@@ -54,6 +54,40 @@ class UsefulVars(object):
         self.unused_supply_re = r'^\(b\'(SF|ST |FP).*'
         self.unused_demand_re = r'^\(b\'(?!(HT|CL|SH)).*'
 
+class SkipLines(object):
+    """Class of variables that would otherwise be global.
+
+    Attributes:
+        json_in (str): Filename for empty input JSON with the structure
+            to be populated with AEO data.
+        json_out (str): Filename for JSON with residential building data added.
+        aeo_metadata (str): File name for the custom AEO metadata JSON.
+    """
+    def __init__(self, aeo_import_year=2021):
+      self.aeo_import_year = aeo_import_year
+      if self.aeo_import_year == 2015:
+          self.nlt_cp_skip_header = 20
+          self.nlt_l_skip_header = 19
+          self.lt_skip_header = 35
+          self.lt_skip_footer = 54
+      elif self.aeo_import_year in [2016, 2017, 2018]:
+          self.nlt_cp_skip_header = 25
+          self.nlt_l_skip_header = 20
+          self.lt_skip_header = 37
+          if aeo_import_year in [2016, 2017]:
+              self.lt_skip_footer = 54
+          else:
+              self.lt_skip_footer = 52
+      elif self.aeo_import_year == 2019:
+          self.nlt_cp_skip_header = 2
+          self.nlt_l_skip_header = 2
+          self.lt_skip_header = 37
+          self.lt_skip_footer = 52
+      else:
+          self.nlt_cp_skip_header = 2
+          self.nlt_l_skip_header = 2
+          self.lt_skip_header = 37
+          self.lt_skip_footer = 51
 
 # Define a series of dicts that will translate imported JSON
 # microsegment names to AEO microsegment(s)
@@ -1341,6 +1375,7 @@ def main():
     # Instantiate objects that contain useful variables
     handyvars = UsefulVars()
     eiadata = EIAData()
+    skip = SkipLines()
 
     # Import metadata generated based on EIA AEO data files
     with open(handyvars.aeo_metadata, 'r') as metadata:
@@ -1354,21 +1389,13 @@ def main():
     # how to specify the year range to be used for processing the data
     if aeo_import_year == 2015:
         yrs_range = metajson['max year'] - metajson['min year'] + 1
-        lt_skip_header = 35
-        lt_skip_footer = 54
 
         # Import EIA RESDBOUT.txt energy use and stock file
         ns_dtypes = dtype_array(eiadata.res_energy, '\t')
         ns_data = data_import(eiadata.res_energy, ns_dtypes, '\t',
                               ['SF', 'ST', 'FP'])
     else:
-        yrs_range = metajson['max year'] - metajson['min year'] + 1
-        lt_skip_header = 37
-        if aeo_import_year in [2016, 2017]:
-            lt_skip_footer = 54
-        else:
-            yrs_range = 36
-            lt_skip_footer = 51
+        yrs_range = 36
         update_lighting_dict()
 
         # Import EIA RESDBOUT.txt energy use and stock file
@@ -1409,8 +1436,8 @@ def main():
     # are reported for only one lighting technology type (bulb type)
     # for each fixture/luminaire type
     eia_lt = numpy.genfromtxt(rmt.EIAData().r_lt_all, dtype=eia_lt_dtype,
-                              skip_header=lt_skip_header,
-                              skip_footer=lt_skip_footer,
+                              skip_header=skip.lt_skip_header,
+                              skip_footer=skip.lt_skip_footer,
                               encoding="latin1")
 
     # Compute the number of unique lighting fixture and bulb type combinations
