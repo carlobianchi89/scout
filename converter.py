@@ -50,8 +50,8 @@ class ValidQueries(object):
             specified with the strings employed by the API.
     """
     def __init__(self):
-        self.years = ['2018', '2019', '2020']
-        self.cases = ['REF2018', 'REF2019', 'REF2020', 'CO2FEE25']
+        self.years = ['2018', '2019', '2020', '2021']
+        self.cases = ['REF2018', 'REF2019', 'REF2020', 'REF2021', 'CO2FEE25']
 
 
 class EIAQueryData(object):
