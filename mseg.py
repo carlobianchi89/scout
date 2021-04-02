@@ -538,8 +538,10 @@ def list_generator(nrg_stock, tloads, filterdata, aeo_years, lt_factors):
     # type string for incandescents between the AEO 2015 and 2017
     # data; this approach might merit revisiting later
     if aeo_years in [42, 36]:  # AEO 2017-2019 formatting
-        lt_with_energy = [('GSL', 'INC'), ('LFL', 'T12'),
+        lt_with_energy = [('GSL', 'INC'), ('LFL', 'T12'), #AEO 2017-2019
                           ('REF', 'INC'), ('EXT', 'INC')]
+        #lt_with_energy = [('GSL', 'HAL'), ('LFL', 'T12'), #AEO 2021
+                          #('REF', 'INC'), ('EXT', 'INC')]
     else:  # AEO 2015 formatting
         lt_with_energy = [('GSL', 'Inc'), ('LFL', 'T12'),
                           ('REF', 'Inc'), ('EXT', 'Inc')]
@@ -559,7 +561,6 @@ def list_generator(nrg_stock, tloads, filterdata, aeo_years, lt_factors):
 
             # Construct a new text filter using the lighting type
             # that has data available, and avoiding the use of
-            # copy.deepcopy to limit computational expense
             addl_txt_filter = txt_filter[0][:4]
             addl_txt_filter.append(new_lt_filt)
             addl_txt_filter = [addl_txt_filter, txt_filter[1]]
@@ -633,6 +634,8 @@ def list_generator(nrg_stock, tloads, filterdata, aeo_years, lt_factors):
                 group_energy, group_stock = nrg_stock_select(
                     nrg_stock, txt_filter)
 
+
+
             # Obtain the applicable lighting energy correction factors
             lt_correction = lt_factors[numpy.all(
                 [lt_factors['CDIV'] == txt_filter[0][1],
@@ -699,7 +702,6 @@ def walk(nrg_stock, loads, json_dict, yrs_range, lt_factors, key_list=[]):
 
     # Explore the data structure from the current location
     for key, item in json_dict.items():
-
         # If there are additional levels in the dict, call the function
         # again to advance another level deeper into the data structure
         if isinstance(item, dict):
@@ -713,7 +715,6 @@ def walk(nrg_stock, loads, json_dict, yrs_range, lt_factors, key_list=[]):
         else:
             if key_list[1] in bldgtypedict.keys():
                 leaf_node_keys = key_list + [key]
-
                 # Extract data from original data sources
                 data_dict = list_generator(nrg_stock, loads, leaf_node_keys,
                                            yrs_range, lt_factors)
@@ -1367,7 +1368,7 @@ def main():
             lt_skip_footer = 54
         else:
             yrs_range = 36
-            lt_skip_footer = 52
+            lt_skip_footer = 51
         update_lighting_dict()
 
         # Import EIA RESDBOUT.txt energy use and stock file
