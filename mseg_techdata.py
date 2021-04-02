@@ -943,10 +943,10 @@ def stitch(input_array, project_dict, col_name):
             # Find the row(s) where the absolute difference between the loop
             # year and value for the "START_EQUIP_YR" column is smallest
             array_close_ind = numpy.where(abs(int(yr) -
-                                          input_array["START_EQUIP_YR"]) ==
+                                          input_array["START_EQUIP_YR"].astype(int)) ==
                                           min(abs(int(yr) -
-                                              input_array[
-                                              "START_EQUIP_YR"])))[0]
+                                              input_array["START_EQUIP_YR"].astype(int))))[0]
+
             # If only one row has been found above, draw output information
             # from the column in that row keyed by col_name input
             if len(array_close_ind) == 1:
@@ -1016,7 +1016,7 @@ def main():
         nlt_cp_skip_header = 2
         nlt_l_skip_header = 2
         lt_skip_header = 36
-        lt_skip_footer = 50
+        lt_skip_footer = 51
 
     # Instantiate objects that contain useful variables
     handyvars = UsefulVars()
