@@ -3019,6 +3019,10 @@ class Engine(object):
             # Group baseline/efficient markets, savings, and financial
             # metrics into list for updates
             summary_vals = [
+                mkts["stock"]["competed"]["all"],  # NEW stock data
+                mkts["stock"]["competed"]["measure"],  # NEW stock data
+                mkts['energy']['competed']['baseline'],  # NEW first-year savings data
+                mkts['energy']['competed']['efficient'],  # NEW first-year savings data
                 mkts["energy"]["total"]["baseline"],
                 mkts["carbon"]["total"]["baseline"],
                 mkts["cost"]["energy"]["total"]["baseline"],
@@ -3057,7 +3061,8 @@ class Engine(object):
             # will be the same)
 
             # Mean of outputs
-            energy_base_avg, carb_base_avg, energy_cost_base_avg, \
+            stock_avg, sales_avg, energy_comp_base_avg, energy_comp_eff_avg, \
+                energy_base_avg, carb_base_avg, energy_cost_base_avg, \
                 carb_cost_base_avg, energy_eff_avg, carb_eff_avg, \
                 energy_cost_eff_avg, carb_cost_eff_avg, energy_save_avg, \
                 energy_costsave_avg, carb_save_avg, carb_costsave_avg, \
@@ -3068,7 +3073,8 @@ class Engine(object):
                     k: numpy.mean(v) for k, v in z.items()} for
                     z in summary_vals]
             # 5th percentile of outputs
-            energy_base_low, carb_base_low, energy_cost_base_low, \
+            stock_low, sales_low, energy_comp_base_low, energy_comp_eff_low, \
+                energy_base_low, carb_base_low, energy_cost_base_low, \
                 carb_cost_base_low, energy_eff_low, carb_eff_low, \
                 energy_cost_eff_low, carb_cost_eff_low, energy_save_low, \
                 energy_costsave_low, carb_save_low, carb_costsave_low, \
@@ -3078,7 +3084,8 @@ class Engine(object):
                     k: numpy.percentile(v, 5) for k, v in z.items()} for
                     z in summary_vals]
             # 95th percentile of outputs
-            energy_base_high, carb_base_high, energy_cost_base_high, \
+            stock_high, sales_high, energy_comp_base_high, energy_comp_eff_high, \
+                energy_base_high, carb_base_high, energy_cost_base_high, \
                 carb_cost_base_high, energy_eff_high, carb_eff_high, \
                 energy_cost_eff_high, carb_cost_eff_high, energy_save_high, \
                 energy_costsave_high, carb_save_high, carb_costsave_high, \
@@ -3093,9 +3100,11 @@ class Engine(object):
             # total markets/savings (e.g., not broken out in any way). These
             # initial values will be adjusted by breakout fractions below
             self.output_ecms[m.name]["Markets and Savings (Overall)"][
-                adopt_scheme], self.output_ecms[m.name][
-                    "Markets and Savings (by Category)"][
-                    adopt_scheme] = (OrderedDict([
+                adopt_scheme] = OrderedDict([
+                        ("Stock", stock_avg),
+                        ("Sales", sales_avg),
+                        ("Baseline Competed Energy (MMBtu)", energy_comp_base_avg),
+                        ("Efficient Competed Energy (MMBtu)", energy_comp_eff_avg),
                         ("Baseline Energy Use (MMBtu)", energy_base_avg),
                         ("Efficient Energy Use (MMBtu)", energy_eff_avg),
                         ("Baseline CO2 Emissions (MMTons)".translate(sub),
@@ -3113,8 +3122,28 @@ class Engine(object):
                         ("Avoided CO2 Emissions (MMTons)".
                             translate(sub), carb_save_avg),
                         ("CO2 Cost Savings (USD)".
-                            translate(sub), carb_costsave_avg)]) for
-                        n in range(2))
+                            translate(sub), carb_costsave_avg)])
+
+            self.output_ecms[m.name]["Markets and Savings (by Category)"][
+                    adopt_scheme] = OrderedDict([
+                        ("Baseline Energy Use (MMBtu)", energy_base_avg),
+                        ("Efficient Energy Use (MMBtu)", energy_eff_avg),
+                        ("Baseline CO2 Emissions (MMTons)".translate(sub),
+                            carb_base_avg),
+                        ("Efficient CO2 Emissions (MMTons)".translate(sub),
+                            carb_eff_avg),
+                        ("Baseline Energy Cost (USD)", energy_cost_base_avg),
+                        ("Efficient Energy Cost (USD)", energy_cost_eff_avg),
+                        ("Baseline CO2 Cost (USD)".translate(sub),
+                            carb_cost_base_avg),
+                        ("Efficient CO2 Cost (USD)".translate(sub),
+                            carb_cost_eff_avg),
+                        ("Energy Savings (MMBtu)", energy_save_avg),
+                        ("Energy Cost Savings (USD)", energy_costsave_avg),
+                        ("Avoided CO2 Emissions (MMTons)".
+                            translate(sub), carb_save_avg),
+                        ("CO2 Cost Savings (USD)".
+                            translate(sub), carb_costsave_avg)])
 
             # Normalize the baseline energy/carbon/cost, efficient energy/
             # carbon/cost, and energy/carbon/cost savings for the measure that
