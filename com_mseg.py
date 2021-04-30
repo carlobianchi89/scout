@@ -19,6 +19,7 @@ class EIAData(object):
     def __init__(self):
         self.serv_dmd = 'KSDOUT.txt'
         self.catg_dmd = 'KDBOUT.txt'
+        self.com_generation = 'KDGENOUT.txt'
 
 
 class UsefulVars(object):
@@ -479,6 +480,10 @@ def data_handler(db_array, sd_array, load_array, key_series, sd_end_uses, yrs):
         A dict with data appropriate for the current location in the
         JSON specified by 'key_series'.
     """
+
+    def array_mult(dct, factor):
+      scaled = {key: val * factor for key, val in dct.items()}
+      return scaled
 
     # Convert the list of keys into a list of numeric indices that can
     # be used to select the appropriate data
@@ -954,6 +959,195 @@ def str_cleaner(data_array, column_name, return_str_len=False):
         return data_array, str_trunc_len_final
     else:
         return data_array
+"""
+def onsite_calc(thermal_loads, json_results):
+
+    def array_mult(dct, factor):
+        scaled = {key: val * factor for key, val in dct.items()}
+        return scaled
+
+    def dct_sub(dct1, dct2): ## Not working
+        diff = {key: dct1[key] - dct2.get(key, 0)
+                       for key in dct1.keys()}
+        return diff
+
+        cdiv = key_series[0]
+        bld = key_series[1]
+        enduse = key_series[3]
+
+        gen_perc = {'cooling': 0.12, 'ventilation': 0.13,'lighting':0.16}
+
+        if enduse in gen_perc.keys():
+            # segment_gen = onsite_pull(key_series, onsite_gen)
+            segment = onsite_gen[np.all([onsite_gen['Division'] == cdiv,
+                                onsite_gen['BldgType'] == bld], axis=0)]
+
+            ##Unit conversion??
+
+            #enduse_gen = array_mult(segment, 0.12)
+            #print(np.unique(onsite_gen['BldgType']))
+
+    component_dct = {'WIND_COND':'windows conduction', 'WIND_SOL':'windows solar',
+                 'ROOF':'roof', 'WALL':'wall', 'INFIL': 'infiltration', 
+                 'PEOPLE':'people gain', 'GRND':'ground', 'EQUIP':'equipment gain', 
+                 'VENT': 'ventilation', 'LIGHTS':'lighting gain', 
+                 'EQUIP_NELEC': ' other heat gain', 'FLOOR': 'floor'}
+
+    #Read in AEO's onsite generation file 
+    gen_file = 'KDGENOUT.txt'
+    gen_dtypes = dtype_array(gen_file)
+    gen_dtypes[1] = ('Year', '<U50')
+    gen_data = data_import(gen_file, gen_dtypes)
+
+    # Define end use split (from AEO's old methodology)
+    com_ownuse_split = {'cooling':{'central AC': 0.35}, 
+                        'other':{'electric other': 0.65}}
+
+    #Define impacted building types
+    res_bld_PV = {'SF': 'single family home'}#### ALL COM
+
+
+    #Pull the onsite generation by census division
+    gen_dict = {}
+    for div in cdivdict:
+        cdiv = gen_data[gen_data['Division']==cdivdict[div]][['Year', 'OwnUse']]
+        years = numpy.unique(cdiv['Year'])
+        onsite_gen = dict([(i, cdiv[cdiv['Year']==i]['OwnUse'].sum()) for i in years])
+        cooling_slice = json_results[div]['single family home']['electricity']['cooling']
+        other_slice = json_results[div]['single family home']['electricity']['other']
+
+        # Add in new cooling PV type
+        cooling_slice['supply']['onsite generation (cooling)'] = {}
+        cooling_slice['supply']['onsite generation (cooling)']['energy'] = array_mult(onsite_gen, res_ownuse_split['cooling']['central AC'])
+        cooling_slice['supply']['onsite generation (cooling)']['stock'] = 'NA'
+
+        #Adjust in cooling supply
+        org = cooling_slice['supply']['central AC']['energy']
+        pv = cooling_slice['supply']['onsite generation (cooling)']['energy']
+        cooling_slice['supply']['central AC']['energy'] = dct_sub(org, pv)
+
+        #Adjust cooling demand
+        '''
+        for ele in component_dct:
+            onsite_sel = [['CL',cdivdict[div],1],ele]
+            comp = thermal_load_select(thermal_loads, onsite_sel)
+            reduction = array_mult(pv, comp)
+                  #group_energy = {key: val * tloads_component
+                          #for key, val in group_energy_base.items()}
+                          # use to create a dictionary where the component load 
+                          # has been applied to the relevant component demand
+                          # group_energy_base is the heating or the cooling supply
+      '''
+
+        # Add in new other PV type
+        other_slice['onsite generation (other)'] = {}
+        other_slice['onsite generation (other)']['energy'] = array_mult(onsite_gen, res_ownuse_split['other']['electric other'])
+        other_slice['onsite generation (other)']['stock'] = 'NA'
+
+        #Adjust in other electricity
+        org_other = other_slice['electric other']['energy']
+        pv_other = other_slice['onsite generation (other)']['energy']
+        other_slice['electric other']['energy'] = dct_sub(org_other, pv_other)
+
+    return json_results
+"""
+def onsite_prep(generation_file):
+    """ Preps the onsite generation file for commercial
+    by adding together all technologies by segment and 
+    converting building and census division names to 
+    stings for easier querying"""
+
+    bldgtypedict = {'Assembly': 'assembly',
+                     'Education':'education',
+                     'Food Sales': 'food sales',
+                     'Food Service': 'food service',
+                     'Health Care': 'health care',
+                     'Lodging': 'lodging',
+                     'Office-Large': 'large office',
+                     'Office-Small': 'small office',
+                     'Merc/Service': 'mercantile/service',
+                     'Warehouse': 'warehouse',
+                     'Other': 'other'
+                     }
+
+    #Read in AEO's onsite generation file 
+    #generation_file = 'KDGENOUT.txt'
+    gen_dtypes = dtype_array(generation_file)
+    gen_dtypes[1] = ('Year', '<U50')
+    gen_data = data_import(generation_file, gen_dtypes)
+
+    #Pull all the unique microsegment combinations
+    years = np.unique(gen_data['Year'])
+    div = np.unique(gen_data['Division'])
+    bld = np.unique(gen_data['BldgType'])
+
+    #Define datatypes of OwnUse aggregated
+    gen_dtypes = [('Year','<U50'),
+                  ('Division','<i4'), 
+                  ('BldgType', '<U50'), 
+                  ('OwnUse', '<f8')]
+
+    #Sum all onsite generation by microsegment
+    gen_data = np.array([(i, j, k, gen_data[(gen_data['Year']==i)& 
+                                            (gen_data['Division']==j) & 
+                                            (gen_data['BldgType']==k)][
+                                                'OwnUse'].sum()) 
+                                             for i in years for j in div 
+                                             for k in bld], dtype=gen_dtypes)
+    #Unit conversion?
+
+    #Convert cdivision to names
+    cdiv_dct = {str(v): k for k, v in 
+                CommercialTranslationDicts().cdivdict.items()}
+
+    gen_dtypes = [('Year','<U50'),('Division','<U50'), 
+                ('BldgType', '<U50'), 
+                ('OwnUse', '<f8')]
+    gen_data = gen_data.astype(gen_dtypes)
+
+    def name_map(data_array, trans_dict):
+        newArray = np.copy(data_array)
+        for k, v in trans_dict.items(): 
+            newArray[data_array==k] = v
+        return newArray
+
+    gen_data['Division'] = name_map(gen_data['Division'], cdiv_dct)
+    gen_data['BldgType'] = np.char.rstrip(gen_data['BldgType'])
+    gen_data['BldgType'] = name_map(gen_data['BldgType'], bldgtypedict)
+
+    return gen_data
+
+def onsite_calc(generation_file, json_results):
+    """ Calculates net electricity use using EIA's pre-2021 methodology
+    and adds a new PV technology type. """
+
+    def array_mult(dct, factor):
+      scaled = {key: val * factor for key, val in dct.items()}
+      return scaled
+
+    def onsite_pull(cdiv, bld):
+        pull = generation_file[np.all([generation_file['Division'] == cdiv,
+                                generation_file['BldgType'] == bld], axis=0)]
+        years = np.unique(pull['Year'])
+        pull = dict([(i, pull[pull['Year']==i]['OwnUse'].sum()) for i in years])
+        pull = array_mult(pull, -1)
+        return pull
+
+# Pull the onsite generation by census division and building type
+    cdiv = np.unique(generation_file['Division'])
+    bldtype = np.unique(generation_file['BldgType'])
+
+    for div in cdiv:
+        for bld in bldtype:
+            gen = onsite_pull(div, bld)
+
+            #Add onsite generation as new end use
+            elec_slice = json_results[div][bld]['electricity']
+            elec_slice['onsite generation'] = {}
+            elec_slice['onsite generation']['energy'] = gen
+            elec_slice['onsite generation']['stock'] = 'NA'
+
+    return json_results
 
 
 def main():
@@ -977,6 +1171,9 @@ def main():
     load_dtypes = dtype_array(handyvars.com_tloads, '\t')
     load_data = data_import(handyvars.com_tloads, load_dtypes, '\t')
 
+    # Import and process onsite generation from KDGENOUT.txt
+    onsite_gen = onsite_prep(eiadata.com_generation)
+
     # Not all end uses are broken down by equipment type and vintage in
     # KSDOUT; determine which end uses are present so that the service
     # demand data are not explored unnecessarily when they are not even
@@ -993,13 +1190,15 @@ def main():
     # Import empty microsegments JSON file and traverse database structure
     try:
         with open(handyvars.json_in, 'r') as jsi, open(
-             handyvars.json_out, 'w') as jso:
+            handyvars.json_out, 'w') as jso:
             msjson = json.load(jsi)
 
             # Proceed recursively through database structure
             result = walk(catg_data, serv_data, load_data,
                           serv_data_end_uses, msjson, years)
 
+            # Add in onsite generation
+            result = onsite_calc(onsite_gen, result)
             # Write the updated dict of data to a new JSON file
             json.dump(result, jso, indent=2)
 
