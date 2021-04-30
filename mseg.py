@@ -1097,6 +1097,10 @@ def onsite_calc(generation_file, json_results):
       scaled = {key: val * factor for key, val in dct.items()}
       return scaled
 
+
+    # Factor to convert commercial energy data from TBTU to MMBTU
+    to_mmbtu = 1000000
+
     #Read in AEO's onsite generation file 
     gen_dtypes = dtype_array(generation_file)
     gen_dtypes[1] = ('Year', '<U50')
@@ -1110,6 +1114,7 @@ def onsite_calc(generation_file, json_results):
     for div in cdivdict:
         cdiv = gen_data[gen_data['Division']==cdivdict[div]][['Year', 'OwnUse']]
         years = numpy.unique(cdiv['Year'])
+        cdiv['OwnUse'] = cdiv['OwnUse']*to_mmbtu
         onsite_gen = dict([(i, cdiv[cdiv['Year']==i][
                     'OwnUse'].sum()) for i in years])
 

@@ -1003,7 +1003,9 @@ def onsite_prep(generation_file):
                                                 'OwnUse'].sum()) 
                                              for i in years for j in div 
                                              for k in bld], dtype=gen_dtypes)
-    #Unit conversion?
+ 
+    # Factor to convert commercial energy data from TBTU to MMBTU
+    to_mmbtu = 1000000  # 1e6
 
     #Convert cdivision to names
     cdiv_dct = {str(v): k for k, v in 
@@ -1013,6 +1015,9 @@ def onsite_prep(generation_file):
                 ('BldgType', '<U50'), 
                 ('OwnUse', '<f8')]
     gen_data = gen_data.astype(gen_dtypes)
+
+    #Unit converstion of TBTU to MMBTU
+    gen_data['OwnUse'] = gen_data['OwnUse']*to_mmbtu
 
     def name_map(data_array, trans_dict):
         newArray = np.copy(data_array)
