@@ -17,6 +17,7 @@ class EIAData(object):
     """
     def __init__(self):
         self.res_energy = 'RESDBOUT.txt'
+        self.res_generation = 'RDGENOUT.txt'
 
 
 class UsefulVars(object):
@@ -1088,7 +1089,7 @@ def calc_lighting_factors(nrg_stock_data, lt_eff, n_yrs, n_lt_types):
 
     return lt_wf
 
-def onsite_calc(thermal_loads, json_results):
+def onsite_calc(generation_file, json_results):
     """ Calculates net electricity use using EIA's pre-2021 methodology
     and adds a new PV technology type. """
 
@@ -1096,70 +1097,27 @@ def onsite_calc(thermal_loads, json_results):
       scaled = {key: val * factor for key, val in dct.items()}
       return scaled
 
-    def dct_sub(dct1, dct2): ## Not working
-      diff = {key: dct1[key] - dct2.get(key, 0)
-                       for key in dct1.keys()}
-      return diff
-
-    component_dct = {'WIND_COND':'windows conduction', 'WIND_SOL':'windows solar',
-                 'ROOF':'roof', 'WALL':'wall', 'INFIL': 'infiltration', 
-                 'PEOPLE':'people gain', 'GRND':'ground', 'EQUIP':'equipment gain'}
-
     #Read in AEO's onsite generation file 
-    gen_file = 'RDGENOUT.txt'
-    gen_dtypes = dtype_array(gen_file)
+    gen_dtypes = dtype_array(generation_file)
     gen_dtypes[1] = ('Year', '<U50')
-    gen_data = data_import(gen_file, gen_dtypes)
+    gen_data = data_import(generation_file, gen_dtypes)
 
-    # Define end use split (from AEO's old methodology)
-    res_ownuse_split = {'cooling':{'central AC': 0.35}, 
-                        'other':{'electric other': 0.65}}
+    #Define impacted building type
+    res_bld = 'single family home'
 
-    #Define impacted building types
-    res_bld_PV = {'SF': 'single family home'}
-
-
-    #Pull the onsite generation by census division
+    # Pull the onsite generation by census division
     gen_dict = {}
     for div in cdivdict:
         cdiv = gen_data[gen_data['Division']==cdivdict[div]][['Year', 'OwnUse']]
         years = numpy.unique(cdiv['Year'])
-        onsite_gen = dict([(i, cdiv[cdiv['Year']==i]['OwnUse'].sum()) for i in years])
-        cooling_slice = json_results[div]['single family home']['electricity']['cooling']
-        other_slice = json_results[div]['single family home']['electricity']['other']
+        onsite_gen = dict([(i, cdiv[cdiv['Year']==i][
+                    'OwnUse'].sum()) for i in years])
 
-        # Add in new cooling PV type
-        cooling_slice['supply']['onsite generation (cooling)'] = {}
-        cooling_slice['supply']['onsite generation (cooling)']['energy'] = array_mult(onsite_gen, res_ownuse_split['cooling']['central AC'])
-        cooling_slice['supply']['onsite generation (cooling)']['stock'] = 'NA'
-
-        #Adjust in cooling supply
-        org = cooling_slice['supply']['central AC']['energy']
-        pv = cooling_slice['supply']['onsite generation (cooling)']['energy']
-        cooling_slice['supply']['central AC']['energy'] = dct_sub(org, pv)
-
-        #Adjust cooling demand
-        '''
-        for ele in component_dct:
-            onsite_sel = [['CL',cdivdict[div],1],ele]
-            comp = thermal_load_select(thermal_loads, onsite_sel)
-            reduction = array_mult(pv, comp)
-                  #group_energy = {key: val * tloads_component
-                          #for key, val in group_energy_base.items()}
-                          # use to create a dictionary where the component load 
-                          # has been applied to the relevant component demand
-                          # group_energy_base is the heating or the cooling supply
-      '''
-
-        # Add in new other PV type
-        other_slice['onsite generation (other)'] = {}
-        other_slice['onsite generation (other)']['energy'] = array_mult(onsite_gen, res_ownuse_split['other']['electric other'])
-        other_slice['onsite generation (other)']['stock'] = 'NA'
-
-        #Adjust in other electricity
-        org_other = other_slice['electric other']['energy']
-        pv_other = other_slice['onsite generation (other)']['energy']
-        other_slice['electric other']['energy'] = dct_sub(org_other, pv_other)
+        # Add in new onsite generation end use
+        elec_slice = json_results[div][res_bld]['electricity']
+        elec_slice['onsite generation'] = {}
+        elec_slice['onsite generation']['energy'] = array_mult(onsite_gen, -1)
+        elec_slice['onsite generation']['stock'] = 'NA'
 
     return json_results
 
@@ -1547,9 +1505,9 @@ def main():
         # to mine from the imported data, and make the replacements
         result = walk(ns_data, tl_data, msjson, yrs_range, lt_wt_fac)
 
-        # Optional line to recreate pre-2021 AEO onsite generation
-        # methodology
-        result = onsite_calc(tl_data, result.copy())
+        # Add in onsite generation for SF as a new end-use from
+        # RGENOUT.txt
+        result = onsite_calc(eiadata.res_generation, result)
 
         # Write the updated dict of data to a new JSON file
         json.dump(result, jso, indent=2, default=fix_ints)
