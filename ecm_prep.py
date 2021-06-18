@@ -1636,6 +1636,8 @@ class Measure(object):
         # Check to ensure that the proper EMM regions are defined in the
         # measure 'climate_zone' attribute if time sensitive ECM features
         # and/or output metrics are desired
+
+
         valid_tsv_regions = [
             'ERCT', 'FRCC', 'MROE', 'MROW', 'NEWE', 'NYCW', 'NYLI', 'NYUP',
             'RFCE', 'RFCM', 'RFCW', 'SRDA', 'SRGW', 'SRSE', 'SRCE', 'SRVC',
@@ -1787,6 +1789,8 @@ class Measure(object):
                 "in ECM '" + self.name + "'")
 
     def fill_mkts(self, msegs, msegs_cpl, convert_data, tsv_data, opts):
+
+
         """Fill in a measure's market microsegments using EIA baseline data.
 
         Args:
@@ -3355,6 +3359,7 @@ class Measure(object):
                     # Update total, competed, and efficient stock, energy,
                     # carbon and baseline/measure cost info. based on adoption
                     # scheme
+
                     [add_stock_total, add_energy_total, add_carb_total,
                      add_stock_total_meas, add_energy_total_eff,
                      add_carb_total_eff, add_stock_compete, add_energy_compete,
@@ -5038,8 +5043,8 @@ class Measure(object):
             Total, total-efficient, competed, and competed-efficient
             stock, energy, carbon, and cost market microsegments.
         """
-        # Initialize stock, energy, and carbon mseg partition dicts, where the
-        # dict keys will be years in the modeling time horizon
+        # Initialize stock, energy, and carbon mseg partition dicts, where thefill_mktsn
+
         stock_total, energy_total, carb_total, energy_total_sbmkt, \
             carb_total_sbmkt, stock_total_meas, \
             energy_total_eff, carb_total_eff, stock_compete, \
@@ -5143,6 +5148,59 @@ class Measure(object):
         else:
             secnd_mseg_adjkey = None
 
+        # For a primary microsegment and adjusted adoption potential case,
+        # determine the portion of competed stock that remains with the
+        # baseline technology or changes to the efficient alternative
+        # technology; for all other scenarios, set both fractions to 1
+        # print(self.diffusion_coefficients["2020"])
+        if adopt_scheme == "Adjusted adoption potential" and \
+           mskeys[0] == "primary":
+            # PLACEHOLDER
+            diffuse_eff_frac = 999
+            # print('----------------')
+            # print(self.market_entry_year
+        else:
+            # Initialize dictionary
+            years_diff_fraction_dictionary = {}
+            # Let us check if the diffusion coefficients are defined:
+            try:
+                var
+            except NameError:
+                # If not present, we set it to 1
+                for year in range(2014,2060):
+                    # Check if the dictionary in the json file contains this year.
+                    for year in range(2014,2060):
+                        years_diff_fraction_dictionary[str(year)] = 1
+            else:
+                # check if the diffusion fraction is a single point:
+                if isinstance(self.diffusion_coefficients, float) | isinstance(self.diffusion_coefficients, int):
+                    # If it is the case, set that coefficient for all the years
+                    # But first check the value is valid
+                    if (self.diffusion_coefficients <= 0) | (self.diffusion_coefficients>1):
+                        self.diffusion_coefficients = 1
+                    for year in range(2014,2060):
+                        years_diff_fraction_dictionary[str(year)] = self.diffusion_coefficients
+                # Now check if the diffusion fraction is dictionary
+                elif isinstance(self.diffusion_coefficients, dict):
+                    # Read dictionary from json and get first value, for whatever year
+                    base_coefficient = list(self.diffusion_coefficients.values())[0]
+                    for year in range(2014,2060):
+                        # Check if the dictionary in the json file contains this year.
+                        if self.diffusion_coefficients.__contains__(str(year)):
+                            # If present, add that value to the vectorized dictionary and
+                            # set the base_coefficient
+                            base_coefficient = self.diffusion_coefficients[str(year)]
+                        # But first check the value is valid
+                        if not (isinstance(base_coefficient, float) | isinstance(base_coefficient, int)) & ((base_coefficient > 0) | (base_coefficient<=1)):
+                            base_coefficient = 1
+                        # Now let us set base_coefficient
+                        years_diff_fraction_dictionary[str(year)] = base_coefficient
+                # In any other case, just set the coefficient to 1
+                else:
+                    for year in range(2014,2060):
+                        years_diff_fraction_dictionary[str(year)] = 1
+
+
         # Loop through and update stock, energy, and carbon mseg partitions for
         # each year in the modeling time horizon
         for yr in self.handyvars.aeo_years:
@@ -5192,13 +5250,18 @@ class Measure(object):
                 # baseline technology
                 captured_base_frac = 1 - captured_eff_frac
 
+
+
+
             # Stock, energy, and carbon adjustments
             stock_total[yr] = stock_total_init[yr] * mkt_scale_frac
             energy_total_sbmkt[yr] = energy_total_init[yr] * mkt_scale_frac
             energy_total[yr] = energy_total_sbmkt[yr] * tsv_energy_base
             carb_total_sbmkt[yr] = carb_total_init[yr] * mkt_scale_frac
             carb_total[yr] = carb_total_sbmkt[yr] * tsv_carb_base
-
+            print('===================================')
+            print(yr)
+            print(mkt_scale_frac)
             # Re-apportion total baseline microsegment energy across all 8760
             # hours of the year, if necessary (supports sector-level savings
             # shapes)
@@ -5221,16 +5284,23 @@ class Measure(object):
                     "Missing hourly fraction of annual load data for "
                     "baseline energy use segment: " + mskeys + ". ")
 
-            # For a primary microsegment and adjusted adoption potential case,
-            # determine the portion of competed stock that remains with the
-            # baseline technology or changes to the efficient alternative
-            # technology; for all other scenarios, set both fractions to 1
-            if adopt_scheme == "Adjusted adoption potential" and \
-               mskeys[0] == "primary":
-                # PLACEHOLDER
-                diffuse_eff_frac = 999
-            else:
-                diffuse_eff_frac = 1
+            # # For a primary microsegment and adjusted adoption potential case,
+            # # determine the portion of competed stock that remains with the
+            # # baseline technology or changes to the efficient alternative
+            # # technology; for all other scenarios, set both fractions to 1
+            # print('+++++++++++++++++++++')
+            # print(self.market_entry_year)
+            # # print(self.diffusion_coefficients["2020"])
+            # if adopt_scheme == "Adjusted adoption potential" and \
+            #    mskeys[0] == "primary":
+            #     # PLACEHOLDER
+            #     diffuse_eff_frac = 999
+            #     # print('----------------')
+            #     # print(self.market_entry_year)
+            # else:
+            #     diffuse_eff_frac = 1
+            #     # print('**************')
+            #     # print(self.market_entry_year)
 
             # Calculate replacement fractions for the baseline and efficient
             # stock. * Note: these fractions are both 0 for secondary
@@ -5453,7 +5523,8 @@ class Measure(object):
                     "original energy (total)"][secnd_mseg_adjkey][yr]
             # Primary microsegment and year when measure is on the market
             else:
-                competed_captured_eff_frac = competed_frac * diffuse_eff_frac
+                # competed_captured_eff_frac = competed_frac * diffuse_eff_frac
+                competed_captured_eff_frac = competed_frac * years_diff_fraction_dictionary[yr]
 
             # In the case of a primary microsegment with secondary effects,
             # update the information needed to scale down the secondary
@@ -7990,6 +8061,7 @@ def main(base_dir):
     # Initialize list of individual measures to prepare
     meas_toprep_indiv = []
     # Import all individual measure JSONs
+
     for mi in meas_toprep_indiv_names:
         with open(path.join(base_dir, handyfiles.indiv_ecms, mi), 'r') as jsf:
             try:
@@ -8112,6 +8184,7 @@ def main(base_dir):
         mpkg for mpkg in meas_summary if "contributing_ECMs" in mpkg.keys()]
     # Loop through each package dict in the current list and determine which
     # of these package measures require further preparation
+
     for m in meas_toprep_package_init:
         # Determine the subset of previously prepared package measures
         # with the same name as the current package measure
@@ -8135,10 +8208,10 @@ def main(base_dir):
             raise ValueError(
                 "Multiple existing ECM names match '" + m["name"] + "'")
 
+
     # If one or more measure definition is new or has been edited, proceed
     # further with 'ecm_prep.py' routine; otherwise end the routine
     if len(meas_toprep_indiv) > 0 or len(meas_toprep_package) > 0:
-
         # Import baseline microsegments
         with open(path.join(base_dir, *handyfiles.msegs_in), 'r') as msi:
             try:
@@ -8313,6 +8386,7 @@ def main(base_dir):
 
 if __name__ == "__main__":
     import time
+
     start_time = time.time()
     # Handle option user-specified execution arguments
     parser = ArgumentParser()
