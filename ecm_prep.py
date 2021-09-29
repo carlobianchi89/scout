@@ -5155,21 +5155,21 @@ class Measure(object):
         # print(self.diffusion_coefficients["2020"])
         if adopt_scheme == "Adjusted adoption potential" and \
            mskeys[0] == "primary":
-            # PLACEHOLDER
             diffuse_eff_frac = 999
-            # print('----------------')
-            # print(self.market_entry_year
         else:
             # Initialize dictionary
             years_diff_fraction_dictionary = {}
+            # Create range_years
+            range_years = range(2008,2060)
             # Let us check if the diffusion coefficients are defined:
             try:
-                var
-            except NameError:
+                self.diffusion_coefficients
+            except (NameError, AttributeError):
+                print('Diffusion coefficients are not present in the measure\n==> diffusion coefficient set to 1 for every year.')
                 # If not present, we set it to 1
-                for year in range(2014,2060):
+                for year in range_years:
                     # Check if the dictionary in the json file contains this year.
-                    for year in range(2014,2060):
+                    for year in range_years:
                         years_diff_fraction_dictionary[str(year)] = 1
             else:
                 # check if the diffusion fraction is a single point:
@@ -5177,14 +5177,32 @@ class Measure(object):
                     # If it is the case, set that coefficient for all the years
                     # But first check the value is valid
                     if (self.diffusion_coefficients <= 0) | (self.diffusion_coefficients>1):
+                        print('Diffusion coefficients must be floats between 0 and 1\n==> Diffusion coefficient set to 1 for every year.')
                         self.diffusion_coefficients = 1
-                    for year in range(2014,2060):
+                    for year in range_years:
                         years_diff_fraction_dictionary[str(year)] = self.diffusion_coefficients
+                # Check if string, but it can be intrepreted as float
+                elif isinstance(self.diffusion_coefficients, str):
+                    try:
+                        self.diffusion_coefficients = float(self.diffusion_coefficients)
+                    except ValueError:
+                        print('Diffusion coefficients must be floats between 0 and 1\n==> Diffusion coefficient set to 1 for every year.')
+                        for year in range_years:
+                            years_diff_fraction_dictionary[str(year)] = 1
+                    else:
+                        # If it is the case, set that coefficient for all the years
+                        # But first check the value is valid
+                        if (self.diffusion_coefficients <= 0) | (self.diffusion_coefficients>1):
+                            print('Diffusion coefficients must be floats between 0 and 1\n==> Diffusion coefficient set to 1 for every year.')
+                            self.diffusion_coefficients = 1
+                        else:
+                            for year in range_years:
+                                years_diff_fraction_dictionary[str(year)] = self.diffusion_coefficients
                 # Now check if the diffusion fraction is dictionary
                 elif isinstance(self.diffusion_coefficients, dict):
                     # Read dictionary from json and get first value, for whatever year
                     base_coefficient = list(self.diffusion_coefficients.values())[0]
-                    for year in range(2014,2060):
+                    for year in range_years:
                         # Check if the dictionary in the json file contains this year.
                         if self.diffusion_coefficients.__contains__(str(year)):
                             # If present, add that value to the vectorized dictionary and
@@ -5197,7 +5215,8 @@ class Measure(object):
                         years_diff_fraction_dictionary[str(year)] = base_coefficient
                 # In any other case, just set the coefficient to 1
                 else:
-                    for year in range(2014,2060):
+                    print('Diffusion coefficients must be floats between 0 and 1\n==> Diffusion coefficient set to 1 for every year.')
+                    for year in range_years:
                         years_diff_fraction_dictionary[str(year)] = 1
 
 
@@ -5259,9 +5278,6 @@ class Measure(object):
             energy_total[yr] = energy_total_sbmkt[yr] * tsv_energy_base
             carb_total_sbmkt[yr] = carb_total_init[yr] * mkt_scale_frac
             carb_total[yr] = carb_total_sbmkt[yr] * tsv_carb_base
-            print('===================================')
-            print(yr)
-            print(mkt_scale_frac)
             # Re-apportion total baseline microsegment energy across all 8760
             # hours of the year, if necessary (supports sector-level savings
             # shapes)
@@ -5283,24 +5299,6 @@ class Measure(object):
                 raise ValueError(
                     "Missing hourly fraction of annual load data for "
                     "baseline energy use segment: " + mskeys + ". ")
-
-            # # For a primary microsegment and adjusted adoption potential case,
-            # # determine the portion of competed stock that remains with the
-            # # baseline technology or changes to the efficient alternative
-            # # technology; for all other scenarios, set both fractions to 1
-            # print('+++++++++++++++++++++')
-            # print(self.market_entry_year)
-            # # print(self.diffusion_coefficients["2020"])
-            # if adopt_scheme == "Adjusted adoption potential" and \
-            #    mskeys[0] == "primary":
-            #     # PLACEHOLDER
-            #     diffuse_eff_frac = 999
-            #     # print('----------------')
-            #     # print(self.market_entry_year)
-            # else:
-            #     diffuse_eff_frac = 1
-            #     # print('**************')
-            #     # print(self.market_entry_year)
 
             # Calculate replacement fractions for the baseline and efficient
             # stock. * Note: these fractions are both 0 for secondary
@@ -5618,6 +5616,7 @@ class Measure(object):
                     elif type(stock_total_meas[yr]) != numpy.ndarray and \
                             stock_total_meas[yr] > stock_total[yr]:
                         stock_total_meas[yr] = stock_total[yr]
+                        
 
             # Update the relative performance and time-sensitive efficiency
             # scaling factors of the current year's captured stock. Set to the
@@ -5679,6 +5678,8 @@ class Measure(object):
             energy_total_eff[yr] = energy_compete_eff[yr] + \
                 energy_tot_uncomp_meas * tsv_energy_eff + \
                 energy_tot_uncomp_base * tsv_energy_base
+
+
             # Re-apportion total efficient microsegment energy across all 8760
             # hours of the year, if necessary (supports sector-level savings
             # shapes)
@@ -5745,7 +5746,6 @@ class Measure(object):
                 # Total-efficient stock cost (full service measure)
                 stock_total_cost_eff[yr] = stock_total_meas[yr] * cost_meas \
                     + (stock_total[yr] - stock_total_meas[yr]) * cost_base[yr]
-
             # Competed baseline energy cost
             energy_compete_cost[yr] = energy_compete_sbmkt[yr] * \
                 cost_energy_base[yr] * tsv_ecost_base
