@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import numpy
+import pandas as pd
 import re
 import itertools
 import json
@@ -15,7 +16,7 @@ from functools import reduce  # forward compatibility for Python 3
 import operator
 from argparse import ArgumentParser
 from ast import literal_eval
-
+import math
 
 class MyEncoder(json.JSONEncoder):
     """Convert numpy arrays to list for JSON serializing."""
@@ -5152,7 +5153,6 @@ class Measure(object):
         # determine the portion of competed stock that remains with the
         # baseline technology or changes to the efficient alternative
         # technology; for all other scenarios, set both fractions to 1
-        # print(self.diffusion_coefficients["2020"])
         if adopt_scheme == "Adjusted adoption potential" and \
            mskeys[0] == "primary":
             diffuse_eff_frac = 999
@@ -5160,64 +5160,216 @@ class Measure(object):
             # Initialize dictionary
             years_diff_fraction_dictionary = {}
             # Create range_years
-            range_years = range(2008,2060)
+            range_years = range(2016,2051)
             # Let us check if the diffusion coefficients are defined:
             try:
-                self.diffusion_coefficients
+                self.diffusion
             except (NameError, AttributeError):
-                print('Diffusion coefficients are not present in the measure\n==> diffusion coefficient set to 1 for every year.')
+                print('WARNING: Diffusion parameters are not present in the measure\n==> diffusion parameters set to 1 for every year.')
                 # If not present, we set it to 1
                 for year in range_years:
-                    # Check if the dictionary in the json file contains this year.
-                    for year in range_years:
-                        years_diff_fraction_dictionary[str(year)] = 1
+                    years_diff_fraction_dictionary[str(year)] = 1
             else:
-                # check if the diffusion fraction is a single point:
-                if isinstance(self.diffusion_coefficients, float) | isinstance(self.diffusion_coefficients, int):
-                    # If it is the case, set that coefficient for all the years
-                    # But first check the value is valid
-                    if (self.diffusion_coefficients <= 0) | (self.diffusion_coefficients>1):
-                        print('Diffusion coefficients must be floats between 0 and 1\n==> Diffusion coefficient set to 1 for every year.')
-                        self.diffusion_coefficients = 1
-                    for year in range_years:
-                        years_diff_fraction_dictionary[str(year)] = self.diffusion_coefficients
-                # Check if string, but it can be intrepreted as float
-                elif isinstance(self.diffusion_coefficients, str):
-                    try:
-                        self.diffusion_coefficients = float(self.diffusion_coefficients)
-                    except ValueError:
-                        print('Diffusion coefficients must be floats between 0 and 1\n==> Diffusion coefficient set to 1 for every year.')
-                        for year in range_years:
-                            years_diff_fraction_dictionary[str(year)] = 1
-                    else:
-                        # If it is the case, set that coefficient for all the years
-                        # But first check the value is valid
-                        if (self.diffusion_coefficients <= 0) | (self.diffusion_coefficients>1):
-                            print('Diffusion coefficients must be floats between 0 and 1\n==> Diffusion coefficient set to 1 for every year.')
-                            self.diffusion_coefficients = 1
-                        else:
-                            for year in range_years:
-                                years_diff_fraction_dictionary[str(year)] = self.diffusion_coefficients
-                # Now check if the diffusion fraction is dictionary
-                elif isinstance(self.diffusion_coefficients, dict):
-                    # Read dictionary from json and get first value, for whatever year
-                    base_coefficient = list(self.diffusion_coefficients.values())[0]
-                    for year in range_years:
-                        # Check if the dictionary in the json file contains this year.
-                        if self.diffusion_coefficients.__contains__(str(year)):
-                            # If present, add that value to the vectorized dictionary and
-                            # set the base_coefficient
-                            base_coefficient = self.diffusion_coefficients[str(year)]
-                        # But first check the value is valid
-                        if not (isinstance(base_coefficient, float) | isinstance(base_coefficient, int)) & ((base_coefficient > 0) | (base_coefficient<=1)):
-                            base_coefficient = 1
-                        # Now let us set base_coefficient
-                        years_diff_fraction_dictionary[str(year)] = base_coefficient
-                # In any other case, just set the coefficient to 1
+                # print(list(self.diffusion.keys())[0])
+                # print('fraction_' in list(self.diffusion.keys())[0])
+                # check if the diffusion is defined as fractions for first and last year
+                # if ('fraction_2016' in self.diffusion.keys()) & ('fraction_2050' in self.diffusion.keys()):
+                if ('fraction_' in list(self.diffusion.keys())[0]):
+                # if ('fraction_' in (self.diffusion.keys())[0]):
+                    print('yeeeeee')
+                    # diff_dict = self.diffusion
+                    # # rename all keys to remove fraction_    
+                    # for k in diff_dict.keys(): 
+                    #     diff_dict[re.sub('fraction_', '', k)] = diff_dict.pop(k)                            
+                    # # The first and last year of the simulation period needs to be defined
+                    # if '2016' not in diff_dict.keys():
+                    #     diff_dict['2016'] = None
+                    # if '2050' not in diff_dict.keys():
+                    #     diff_dict['2050'] = None
+                        
+                    # The diffusion fraction dictionary is converted to a pandas dataframe
+                    df = pd.DataFrame(self.diffusion.items(), columns=['years','diff'])
+                    df['years'] = df['years'].str.replace('fraction_','')
+                    if '2016' not in df['years']:
+                        df.loc[len(df.index)] = ['2016', None] 
+                    if '2050' not in df['years']:
+                        df.loc[len(df.index)] = ['2050', None] 
+                    # The years column is used as index
+                    df['years'] = pd.to_datetime(df['years'])
+                    df.index = df['years']
+                    df.drop(['years'], axis=1, inplace=True)
+                    # Force all values to be floats
+                    df["diff"] = pd.to_numeric(df["diff"], downcast="float")
+                    # The data are resampled yearly
+                    df = df.resample('Y').mean()
+                    # If there is any value greater than 1, set it to 1
+                    if (df['diff']>1).any():
+                        print('WARNING: Some declared diffusion fractions are greater than 1. Their value has been changed to 1.')
+                        df.loc[df['diff']>1, 'diff'] = 1
+                    # if there is any value smaller than 0, set it to 0
+                    if (df['diff']<0).any():
+                        print('WARNING: Some declared diffusion fractions are smaller than 0. Their value has been changed to 0.')
+                        df.loc[df['diff']<0, 'diff'] = 0
+                    # The data are interpolated to fill up values for each year
+                    df = df.interpolate(method='linear', limit_direction='both', limit_area='inside')
+                    # if values for the first and for the last years are not specified, 
+                    # the first declared value is used for all the first years
+                    # and the last declared value is used for all the last years.
+                    if df['diff'].isnull().values.any():
+                        print('WARNING: Not enough data were provided for first and last years ' 
+                              'of the considered simulation period.\n'
+                              'The simulation will continue assuming plausible diffusion fraction values.')
+                        df = df.interpolate(method='linear').bfill()
+                    fractions = df['diff'].to_list()          
+                    # for year in range_years:
+                    for i in range(0,len(range_years)):
+                        years_diff_fraction_dictionary[str(range_years[i])] = fractions[i]
+
+
+
+
+
+                    # try:
+                    #     # rename all keys to remove fraction_    
+                    #     for k in diffusion.keys(): 
+                    #         diffusion[re.sub('fraction_', '', k)] = diffusion.pop(k)                            
+                    #     # The first and last year of the simulation period needs to be defined
+                    #     if '2016' not in diffusion.keys():
+                    #         diffusion['2016'] = None
+                    #     if '2050' not in diffusion.keys():
+                    #         diffusion['2050'] = None
+                            
+                    #     # The diffusion fraction dictionary is converted to a pandas dataframe
+                    #     df = pd.DataFrame(diffusion.items(), columns=['years','diff'])
+                    #     # The years column is used as index
+                    #     df['years'] = pd.to_datetime(df['years'])
+                    #     df.index = df['years']
+                    #     df.drop(['years'], axis=1, inplace=True)
+                    #     # Force all values to be floats
+                    #     df["diff"] = pd.to_numeric(df["diff"], downcast="float")
+                    #     # The data are resampled yearly
+                    #     df = df.resample('Y').mean()
+                    #     # If there is any value greater than 1, set it to 1
+                    #     if (df['diff']>1).any():
+                    #         print('WARNING: Some declared diffusion fractions are greater than 1. Their value has been changed to 1.')
+                    #         df.loc[df['diff']>1, 'diff'] = 1
+                    #     # if there is any value smaller than 0, set it to 0
+                    #     if (df['diff']<0).any():
+                    #         print('WARNING: Some declared diffusion fractions are smaller than 0. Their value has been changed to 0.')
+                    #         df.loc[df['diff']<0, 'diff'] = 0
+                    #     # The data are interpolated to fill up values for each year
+                    #     df = df.interpolate(method='linear', limit_direction='both', limit_area='inside')
+                    #     # if values for the first and for the last years are not specified, 
+                    #     # the first declared value is used for all the first years
+                    #     # and the last declared value is used for all the last years.
+                    #     if df['diff'].isnull().values.any():
+                    #         print('WARNING: Not enough data were provided for first and last years ' 
+                    #               'of the considered simulation period.\n'
+                    #               'The simulation will continue assuming plausible diffusion fraction values.')
+                    #         df = df.interpolate(method='linear').bfill()
+                    #     fractions = df['diff'].to_list()          
+                    #     # for year in range_years:
+                    #     for i in range(0,len(range_years)):
+                    #         years_diff_fraction_dictionary[str(range_years[i])] = fractions[i]
+                    # except (NameError, AttributeError, ValueError):
+                    #     # This takes care of fractions defined as strings not convertible to floats
+                    #     print('WARNING: Diffusion parameters are not properly defined in the measure\n==> diffusion parameters set to 1 for every year.')
+                    #     for year in range_years:
+                    #         years_diff_fraction_dictionary[str(year)] = 1 
+                # check if diffusion parameters are defined as p and q for Bass Diffusion Model
+                elif ('bass_model_p' in self.diffusion.keys()) & ('bass_model_q' in self.diffusion.keys()):
+                    p = float(self.diffusion['bass_model_p'])
+                    q = float(self.diffusion['bass_model_q'])
+                    for i in range(0,len(range_years)):
+                        # Bass diffusion model
+                        value = (1- math.exp(-(p+q)*(range_years[i]-range_years[0]))) / ((1+ (q/p)*math.exp(-(p+q)*(range_years[i]-range_years[0]))))
+                        years_diff_fraction_dictionary[str(range_years[i])] = value
+                    # try:
+                    #     p = float(self.diffusion['bass_model_p'])
+                    #     q = float(self.diffusion['bass_model_q'])
+                    #     for i in range(0,len(range_years)):
+                    #         # Bass diffusion model
+                    #         value = (1- math.exp(-(p+q)*(range_years[i]-range_years[0]))) / ((1- (q/p)*math.exp(-(p+q)*(range_years[i]-range_years[0]))))
+                    #         years_diff_fraction_dictionary[str(range_years[i])] = value
+                    # except (NameError, AttributeError):
+                    #     # This takes care of fractions defined as strings not convertible to floats
+                    #     print('Diffusion parameters are not properly defined in the measure2\n==> diffusion parameters set to 1 for every year.')
+                    #     for year in range_years:
+                    #         years_diff_fraction_dictionary[str(year)] = 1 
                 else:
-                    print('Diffusion coefficients must be floats between 0 and 1\n==> Diffusion coefficient set to 1 for every year.')
+                    print('WARNING: Diffusion parameters are not properly defined in the measure3\n==> diffusion parameters set to 1 for every year.')
+                    # If not present, we set it to 1
                     for year in range_years:
                         years_diff_fraction_dictionary[str(year)] = 1
+                # if isinstance(self.diffusion_coefficients, float) | isinstance(self.diffusion_coefficients, int):
+                #     # If it is the case, set that coefficient for all the years
+                #     # But first check the value is valid
+                #     if (self.diffusion_coefficients <= 0) | (self.diffusion_coefficients>1):
+                #         print('Diffusion coefficients must be floats between 0 and 1\n==> Diffusion coefficient set to 1 for every year.')
+                #         self.diffusion_coefficients = 1
+                #     for year in range_years:
+                #         years_diff_fraction_dictionary[str(year)] = self.diffusion_coefficients
+                # print(years_diff_fraction_dictionary)
+
+
+
+
+
+
+
+
+                # # check if the diffusion fraction is a single point:
+                # if isinstance(self.diffusion_coefficients, float) | isinstance(self.diffusion_coefficients, int):
+                #     # If it is the case, set that coefficient for all the years
+                #     # But first check the value is valid
+                #     if (self.diffusion_coefficients <= 0) | (self.diffusion_coefficients>1):
+                #         print('Diffusion coefficients must be floats between 0 and 1\n==> Diffusion coefficient set to 1 for every year.')
+                #         self.diffusion_coefficients = 1
+                #     for year in range_years:
+                #         years_diff_fraction_dictionary[str(year)] = self.diffusion_coefficients
+                # # Check if string, but it can be intrepreted as float
+                # elif isinstance(self.diffusion_coefficients, str):
+                #     try:
+                #         self.diffusion_coefficients = float(self.diffusion_coefficients)
+                #     except ValueError:
+                #         print('Diffusion coefficients must be floats between 0 and 1\n==> Diffusion coefficient set to 1 for every year.')
+                #         for year in range_years:
+                #             years_diff_fraction_dictionary[str(year)] = 1
+                #     else:
+                #         # If it is the case, set that coefficient for all the years
+                #         # But first check the value is valid
+                #         if (self.diffusion_coefficients <= 0) | (self.diffusion_coefficients>1):
+                #             print('Diffusion coefficients must be floats between 0 and 1\n==> Diffusion coefficient set to 1 for every year.')
+                #             self.diffusion_coefficients = 1
+                #         else:
+                #             for year in range_years:
+                #                 years_diff_fraction_dictionary[str(year)] = self.diffusion_coefficients
+                # # Now check if the diffusion fraction is dictionary
+                # elif isinstance(self.diffusion_coefficients, dict):
+                #     # Read dictionary from json and get first value, for whatever year
+                #     base_coefficient = list(self.diffusion_coefficients.values())[0]
+                #     for year in range_years:
+                #         # Check if the dictionary in the json file contains this year.
+                #         if self.diffusion_coefficients.__contains__(str(year)):
+                #             # If present, add that value to the vectorized dictionary and
+                #             # set the base_coefficient
+                #             base_coefficient = self.diffusion_coefficients[str(year)]
+                #         # But first check the value is valid
+                #         if not (isinstance(base_coefficient, float) | isinstance(base_coefficient, int)) & ((base_coefficient > 0) | (base_coefficient<=1)):
+                #             base_coefficient = 1
+                #         # Now let us set base_coefficient
+                #         years_diff_fraction_dictionary[str(year)] = base_coefficient
+                # # In any other case, just set the coefficient to 1
+                # else:
+                #     print('Diffusion coefficients must be floats between 0 and 1\n==> Diffusion coefficient set to 1 for every year.')
+                #     for year in range_years:
+                #         years_diff_fraction_dictionary[str(year)] = 1
+        # for year in range_years:
+        #         years_diff_fraction_dictionary[str(year)] = 1
+
+
+        print(years_diff_fraction_dictionary)
+
 
 
         # Loop through and update stock, energy, and carbon mseg partitions for
