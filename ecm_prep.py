@@ -6865,7 +6865,7 @@ class Measure(object):
             # All other measure diffusion cases
             else:
                 # Currently no diffusion scaling
-                diffuse_frac = 1
+                # diffuse_frac = 1
                 diffuse_frac = years_diff_fraction_dictionary[yr]
                 # Competed fraction is that calculated above for the mseg
                 # after applying submkt scaling
