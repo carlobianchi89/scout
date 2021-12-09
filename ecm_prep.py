@@ -6456,7 +6456,7 @@ class Measure(object):
                 for year in self.handyvars.aeo_years:
                     years_diff_fraction_dictionary[str(year)] = 1
             else:
-                # Check if the diffusion is defined as fractions for first and last year
+                # Check if diffusion parameters are defined as fractions
                 if ('fraction_' in list(self.diffusion.keys())[0]):
                     try:
                         # The diffusion fraction dictionary is converted to a pandas dataframe
