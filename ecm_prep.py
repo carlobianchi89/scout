@@ -6517,7 +6517,6 @@ class Measure(object):
                 # 5) If not present, we set it to 1
                 for year in self.handyvars.aeo_years:
                     years_diff_fraction_dictionary[str(year)] = 1
-    
         
         # Loop through and update stock, energy, and carbon mseg partitions for
         # each year in the modeling time horizon
@@ -6858,11 +6857,16 @@ class Measure(object):
             # All other measure diffusion cases
             else:
                 # Currently no diffusion scaling
-                # diffuse_frac = 1
-                diffuse_frac = years_diff_fraction_dictionary[yr]
+                diffuse_frac = 1
                 # Competed fraction is that calculated above for the mseg
                 # after applying submkt scaling
                 comp_frac_diffuse = comp_frac_sbmkt
+
+            # Multiply diffusion fractions calculated above 
+            # (to represent exogenous HP switching rates, if applicable) 
+            # by further fraction to represent slow diffusion of information 
+            # for emerging technologies
+            diffuse_frac *= years_diff_fraction_dictionary[yr]
 
             # If the measure is on the market, the competed fraction that
             # is captured by the measure is the same as the competed fraction
