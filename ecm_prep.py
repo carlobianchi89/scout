@@ -6437,94 +6437,87 @@ class Measure(object):
         tsv_energy_base = tsv_adj_init["energy"]["baseline"]
 
 
-        # For a primary microsegment and adjusted adoption potential case,
-        # determine the portion of competed stock that remains with the
-        # baseline technology or changes to the efficient alternative
-        # technology; for all other scenarios, set both fractions to 1
-        if adopt_scheme == "Adjusted adoption potential" and \
-           mskeys[0] == "primary":
-            diffuse_eff_frac = 999
+        # DIFFUSION COEFFICIENTS 
+        # 1) Initialize dictionary
+        years_diff_fraction_dictionary = {}            
+        # 2) Let us check if the diffusion coefficients are defined:
+        try:
+            self.diffusion
+        except (NameError, AttributeError):
+            print('WARNING: Diffusion parameters are not present in the measure\n==> diffusion parameters set to 1 for every year.')
+            # If not present, we set it to 1
+            for year in self.handyvars.aeo_years:
+                years_diff_fraction_dictionary[str(year)] = 1
         else:
-            # Initialize dictionary
-            years_diff_fraction_dictionary = {}            
-            # Let us check if the diffusion coefficients are defined:
-            try:
-                self.diffusion
-            except (NameError, AttributeError):
-                print('WARNING: Diffusion parameters are not present in the measure\n==> diffusion parameters set to 1 for every year.')
-                # If not present, we set it to 1
-                for year in self.handyvars.aeo_years:
-                    years_diff_fraction_dictionary[str(year)] = 1
-            else:
-                # Check if the diffusion is defined as fractions for first and last year
-                if ('fraction_' in list(self.diffusion.keys())[0]):
-                    try:
-                        # The diffusion fraction dictionary is converted to a pandas dataframe
-                        df = pd.DataFrame(self.diffusion.items(), columns=['years','diff'])
-                        df['years'] = df['years'].str.replace('fraction_','')
-                        if str(self.handyvars.aeo_years[0]) not in df['years']:
-                            df.loc[len(df.index)] = [str(self.handyvars.aeo_years[0]), None] 
-                        if str(self.handyvars.aeo_years[-1]) not in df['years']:
-                            df.loc[len(df.index)] = [str(self.handyvars.aeo_years[-1]), None] 
-                        # The years column is used as index
-                        df['years'] = pd.to_datetime(df['years'])
-                        df.index = df['years']
-                        df.drop(['years'], axis=1, inplace=True)
-                        # Force all values to be floats
-                        df["diff"] = pd.to_numeric(df["diff"], downcast="float")
-                        # The data are resampled yearly
-                        df = df.resample('Y').mean()
-                        # If there is any value greater than 1, set it to 1
-                        if (df['diff']>1).any():
-                            print('WARNING: Some declared diffusion fractions are greater than 1. Their value has been changed to 1.')
-                            df.loc[df['diff']>1, 'diff'] = 1
-                        # if there is any value smaller than 0, set it to 0
-                        if (df['diff']<0).any():
-                            print('WARNING: Some declared diffusion fractions are smaller than 0. Their value has been changed to 0.')
-                            df.loc[df['diff']<0, 'diff'] = 0
-                        # The data are interpolated to fill up values for each year
-                        df = df.interpolate(method='linear', limit_direction='both', limit_area='inside')
-                        # if values for the first and for the last years are not specified, 
-                        # the first declared value is used for all the first years
-                        # and the last declared value is used for all the last years.
-                        if df['diff'].isnull().values.any():
-                            print('WARNING: Not enough data were provided for first and last years ' 
-                                  'of the considered simulation period.\n'
-                                  'The simulation will continue assuming plausible diffusion fraction values.')
-                            df = df.interpolate(method='linear').bfill()
-                        # The time span for the diffusion fraction is limited to the simulation period
-                        df = df[(df.index.year>=int(self.handyvars.aeo_years[0])) & (df.index.year<int(self.handyvars.aeo_years[-1])+1)]
-                        fractions = df['diff'].to_list()          
-                        # for year in range_years:
-                        for i in range(0,len(self.handyvars.aeo_years)):
-                            years_diff_fraction_dictionary[str(self.handyvars.aeo_years[i])] = fractions[i]
+            # 3) Check if diffusion parameters are defined as fractions
+            if ('fraction_' in list(self.diffusion.keys())[0]):
+                try:
+                    # The diffusion fraction dictionary is converted to a pandas dataframe
+                    df = pd.DataFrame(self.diffusion.items(), columns=['years','diff'])
+                    df['years'] = df['years'].str.replace('fraction_','')
+                    if str(self.handyvars.aeo_years[0]) not in df['years']:
+                        df.loc[len(df.index)] = [str(self.handyvars.aeo_years[0]), None] 
+                    if str(self.handyvars.aeo_years[-1]) not in df['years']:
+                        df.loc[len(df.index)] = [str(self.handyvars.aeo_years[-1]), None] 
+                    # The years column is used as index
+                    df['years'] = pd.to_datetime(df['years'])
+                    df.index = df['years']
+                    df.drop(['years'], axis=1, inplace=True)
+                    # Force all values to be floats
+                    df["diff"] = pd.to_numeric(df["diff"], downcast="float")
+                    # The data are resampled yearly
+                    df = df.resample('Y').mean()
+                    # If there is any value greater than 1, set it to 1
+                    if (df['diff']>1).any():
+                        print('WARNING: Some declared diffusion fractions are greater than 1. Their value has been changed to 1.')
+                        df.loc[df['diff']>1, 'diff'] = 1
+                    # if there is any value smaller than 0, set it to 0
+                    if (df['diff']<0).any():
+                        print('WARNING: Some declared diffusion fractions are smaller than 0. Their value has been changed to 0.')
+                        df.loc[df['diff']<0, 'diff'] = 0
+                    # The data are interpolated to fill up values for each year
+                    df = df.interpolate(method='linear', limit_direction='both', limit_area='inside')
+                    # if values for the first and for the last years are not specified, 
+                    # the first declared value is used for all the first years
+                    # and the last declared value is used for all the last years.
+                    if df['diff'].isnull().values.any():
+                        print('WARNING: Not enough data were provided for first and last years ' 
+                              'of the considered simulation period.\n'
+                              'The simulation will continue assuming plausible diffusion fraction values.')
+                        df = df.interpolate(method='linear').bfill()
+                    # The time span for the diffusion fraction is limited to the simulation period
+                    df = df[(df.index.year>=int(self.handyvars.aeo_years[0])) & (df.index.year<int(self.handyvars.aeo_years[-1])+1)]
+                    fractions = df['diff'].to_list()          
+                    # for year in range_years:
+                    for i in range(0,len(self.handyvars.aeo_years)):
+                        years_diff_fraction_dictionary[str(self.handyvars.aeo_years[i])] = fractions[i]
 
-                    except (NameError, AttributeError, ValueError):
-                        # This takes care of fractions defined as strings not convertible to floats
-                        print('WARNING: Diffusion parameters are not properly defined in the measure\n==> diffusion parameters set to 1 for every year.')
-                        for year in self.handyvars.aeo_years:
-                            years_diff_fraction_dictionary[str(year)] = 1 
-                # check if diffusion parameters are defined as p and q for Bass Diffusion Model
-                elif ('bass_model_p' in self.diffusion.keys()) & ('bass_model_q' in self.diffusion.keys()):
-                    try:
-                        p = float(self.diffusion['bass_model_p'])
-                        q = float(self.diffusion['bass_model_q'])
-                    except ValueError:
-                        print('WARNING: Diffusion parameters are not properly defined in the measure\n==> diffusion parameters set to 1 for every year.')
-                        # If not present, we set it to 1
-                        for year in self.handyvars.aeo_years:
-                            years_diff_fraction_dictionary[str(year)] = 1
-                    else:
-                        for i in range(0,len(self.handyvars.aeo_years)):
-                            # Bass diffusion model
-                            value = (1- math.exp(-(p+q)*(float(self.handyvars.aeo_years[i]) - float(self.handyvars.aeo_years[0])))) / ((1+ (q/p)*math.exp(-(p+q)*(float(self.handyvars.aeo_years[i]) - float(self.handyvars.aeo_years[0])))))
-                            years_diff_fraction_dictionary[str(self.handyvars.aeo_years[i])] = value
-                else:
+                except (NameError, AttributeError, ValueError):
+                    # This takes care of fractions defined as strings not convertible to floats
+                    print('WARNING: Diffusion parameters are not properly defined in the measure\n==> diffusion parameters set to 1 for every year.')
+                    for year in self.handyvars.aeo_years:
+                        years_diff_fraction_dictionary[str(year)] = 1 
+            # 4) check if diffusion parameters are defined as p and q for Bass Diffusion Model
+            elif ('bass_model_p' in self.diffusion.keys()) & ('bass_model_q' in self.diffusion.keys()):
+                try:
+                    p = float(self.diffusion['bass_model_p'])
+                    q = float(self.diffusion['bass_model_q'])
+                except ValueError:
                     print('WARNING: Diffusion parameters are not properly defined in the measure\n==> diffusion parameters set to 1 for every year.')
                     # If not present, we set it to 1
                     for year in self.handyvars.aeo_years:
                         years_diff_fraction_dictionary[str(year)] = 1
-
+                else:
+                    for i in range(0,len(self.handyvars.aeo_years)):
+                        # Bass diffusion model
+                        value = (1- math.exp(-(p+q)*(float(self.handyvars.aeo_years[i]) - float(self.handyvars.aeo_years[0])))) / ((1+ (q/p)*math.exp(-(p+q)*(float(self.handyvars.aeo_years[i]) - float(self.handyvars.aeo_years[0])))))
+                        years_diff_fraction_dictionary[str(self.handyvars.aeo_years[i])] = value
+            else:
+                print('WARNING: Diffusion parameters are not properly defined in the measure\n==> diffusion parameters set to 1 for every year.')
+                # 5) If not present, we set it to 1
+                for year in self.handyvars.aeo_years:
+                    years_diff_fraction_dictionary[str(year)] = 1
+    
         
         # Loop through and update stock, energy, and carbon mseg partitions for
         # each year in the modeling time horizon
