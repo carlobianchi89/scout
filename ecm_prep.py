@@ -6461,11 +6461,11 @@ class Measure(object):
                                       columns=['years', 'diff'])
                     df['years'] = df['years'].str.replace('fraction_', '')
                     if str(self.handyvars.aeo_years[0]) not in df['years']:
-                        df.loc[len(df.index)] =
-                        [str(self.handyvars.aeo_years[0]), None]
+                        df.loc[len(df.index)] =\
+                            [str(self.handyvars.aeo_years[0]), None]
                     if str(self.handyvars.aeo_years[-1]) not in df['years']:
-                        df.loc[len(df.index)] =
-                        [str(self.handyvars.aeo_years[-1]), None]
+                        df.loc[len(df.index)] =\
+                            [str(self.handyvars.aeo_years[-1]), None]
                     # The years column is used as index
                     df['years'] = pd.to_datetime(df['years'])
                     df.index = df['years']
