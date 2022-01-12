@@ -325,53 +325,6 @@ There are many ways in which an ECM definition can be augmented, beyond the basi
 .. _ecm-features-tsv:
 
 
-
-
-
-
-
-
-
-
-Diffusion Fractions
-*************************
-
-.. _ecm-download-distributions:
-
-:download:`Example <examples/ENERGY STAR LED Bulbs v. 1.2 c. 2012.json>` -- LED Bulbs ECM (:ref:`Details <ecm-example-distributions>`)
-
-Probability distributions can be added to the installed cost, energy efficiency, and lifetime specified for ECMs to represent uncertainty or known, quantified variability in one or more of those values. In a single ECM, a probability distribution can be applied to any one or more of these parameters. Probability distributions cannot be specified for any other parameters in an ECM, such as the market entry or exit years, market scaling fractions, or to either the energy savings increase or cost reduction parameters in :ref:`package ECMs <package-ecms>`. 
-
-Where permitted, probability distributions are specified using a list. The first entry in the list identifies the desired distribution. Subsequent entries in the list correspond to the required and optional parameters that define that distribution type, according to the `numpy.random module documentation`_, excluding the optional "size" parameter. [#]_ The |supported-distributions| distributions are currently supported. (Note that the normal and log-normal distributions' scale parameter is standard deviation, not variance.)
-
-.. _numpy.random module documentation: https://docs.scipy.org/doc/numpy/reference/routines.random.html
-
-For a given ECM, if the installed cost is known to vary uniformly between 1585 and 2230 $/unit, that range can be specified with a probability distribution. ::
-
-   {...
-    "installed_cost": ["uniform", 1585, 2230],
-    ...}
-
-Probability distributions can be specified in any location in the energy efficiency, installed cost, or product lifetime specification where a point value would otherwise be used. Distributions do not have to be provided for every value in a detailed specification if it is not relevant or there are insufficient supporting data. Different distributions can be used for each value if so desired. ::
-
-   {...
-    "energy_efficiency": {
-      "heating": ["normal", 2.3, 0.4],
-      "cooling": ["lognormal", 0.9, 0.2],
-      "water heating": 1.15},
-    ...}
-
-.. _ecm-example-distributions:
-
-An ENERGY STAR LED bulbs ECM is :ref:`available for download <ecm-download-distributions>` to illustrate the use of probability distributions, in that case, on installed cost and product lifetime.
-
-
-
-
-
-
-
-
 Time sensitive valuation
 ************************
 
@@ -1121,6 +1074,43 @@ Probability distributions can be specified in any location in the energy efficie
 .. _ecm-example-distributions:
 
 An ENERGY STAR LED bulbs ECM is :ref:`available for download <ecm-download-distributions>` to illustrate the use of probability distributions, in that case, on installed cost and product lifetime.
+
+
+
+Diffusion Parameters
+*************************
+
+.. _ecm-download-diffusion:
+
+:download:`Example <examples/ENERGY STAR Gas Boiler v. 3.0.json>` -- Gas Boiler ECM (:ref:`Details <ecm-example-diffusion>`)
+
+If the diffusion trend is known, for a given ECM it can be expressed as a fraction for a given year: ::
+
+   {...
+    "diffusion": {
+                "fraction_2020": '0.3',
+                "fraction_2030": '0.5',
+                "fraction_2040": '1'
+                 },
+    ...}
+
+Diffusion fractions can be defined for any year between market entry and exit year. For years without a specified fraction, a diffusion fraction will be derived through interpolation.
+
+Alternatively, the diffusion curve can be expressed through the parameters `p` and `q` of the Bass model::
+
+   {...
+    "diffusion": {
+                "bass_model_p": '0.001645368',
+                "bass_model_q": '1.455182'
+                 },
+    ...}
+
+If no diffusion parameter is provided, or if it is provided in a format different than the two formats listed above, the diffusion value is defaulted to 1 for all the considered years, between market entry and exit year.
+
+.. _ecm-example-diffusion:
+
+An ENERGY STAR Gas Boiler ECM is :ref:`available for download <ecm-download-diffusion>` to illustrate the use of diffusion parameters.
+
 
 
 .. _editing-ecms:
