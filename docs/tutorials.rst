@@ -1077,14 +1077,16 @@ An ENERGY STAR LED bulbs ECM is :ref:`available for download <ecm-download-distr
 
 
 
-Diffusion Parameters
+Diffusion Models
 *************************
 
 .. _ecm-download-diffusion:
 
 :download:`Example <examples/ENERGY STAR Gas Boiler v. 3.0.json>` -- Gas Boiler ECM (:ref:`Details <ecm-example-diffusion>`)
 
-If the diffusion trend is known, for a given ECM it can be expressed as a fraction for a given year: ::
+Diffusion models describe how a given technology spreads into the market. Between the market entry and exit year, a certain technology will face a gradual different adoption rate that can be modeled in two different ways.
+
+1) For a given ECM, the diffusion model can be expressed as a series of fractions (between 0 and 1) for each year in the market: ::
 
    {...
     "diffusion": {
