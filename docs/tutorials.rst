@@ -324,7 +324,6 @@ There are many ways in which an ECM definition can be augmented, beyond the basi
 
 .. _ecm-features-tsv:
 
-
 Time sensitive valuation
 ************************
 
@@ -1075,44 +1074,41 @@ Probability distributions can be specified in any location in the energy efficie
 
 An ENERGY STAR LED bulbs ECM is :ref:`available for download <ecm-download-distributions>` to illustrate the use of probability distributions, in that case, on installed cost and product lifetime.
 
+.. _ecm-features-diffusion:
 
-
-Diffusion Models
-*************************
+Technology diffusion
+********************
 
 .. _ecm-download-diffusion:
 
 :download:`Example <examples/ENERGY STAR Gas Boiler v. 3.0.json>` -- Gas Boiler ECM (:ref:`Details <ecm-example-diffusion>`)
 
-Diffusion models describe how a given technology spreads into the market. Between the market entry and exit year, a certain technology will face a gradual different adoption rate that can be modeled in two different ways.
+Technology diffusion models describe how a given technology spreads into the market. Between its market entry and exit year, a technology can have a changing adoption rate to reflect changes in market conditions or consumer awareness. This adoption rate can be modeled in one of two ways.
 
-1) For a given ECM, the diffusion model can be expressed as a series of fractions (between 0 and 1) for each year in the market: ::
-
-   {...
-    "diffusion": {
-                "fraction_2020": '0.3',
-                "fraction_2030": '0.5',
-                "fraction_2040": '1'
-                 },
-    ...}
-
-Diffusion fractions can be defined for any year between market entry and exit year. For years without a specified fraction, a diffusion fraction will be derived through interpolation.
-
-Alternatively, the diffusion curve can be expressed through the parameters `p` and `q` of the Bass model::
+For a given ECM, the diffusion model can be expressed as a series of fractions (between 0 and 1) for one or more years: ::
 
    {...
     "diffusion": {
-                "bass_model_p": '0.001645368',
-                "bass_model_q": '1.455182'
-                 },
+       "fraction_2020": '0.3',
+       "fraction_2030": '0.5',
+       "fraction_2040": '1'},
     ...}
 
-If no diffusion parameter is provided, or if it is provided in a format different than the two formats listed above, the diffusion value is defaulted to 1 for all the considered years, between market entry and exit year.
+These diffusion fractions can be defined for any year between the market entry and exit year. For years without a specified fraction, a diffusion fraction will be derived through linear interpolation. The number of diffusion fractions specified can range from one to the number of years between the market entry and exit year.
+
+Alternatively, the diffusion curve can be expressed through the parameters `p` and `q` of the Bass model: ::
+
+   {...
+    "diffusion": {
+      "bass_model_p": '0.001645368',
+      "bass_model_q": '1.455182'},
+    ...}
+
+If no diffusion parameter is provided, or if it is provided in a format different than the two formats listed above, the diffusion value will default to 1 for all years between the market entry and exit year.
 
 .. _ecm-example-diffusion:
 
-An ENERGY STAR Gas Boiler ECM is :ref:`available for download <ecm-download-diffusion>` to illustrate the use of diffusion parameters.
-
+An ENERGY STAR Gas Boiler ECM is :ref:`available for download <ecm-download-diffusion>` to illustrate the use of the technology diffusion parameters.
 
 
 .. _editing-ecms:
