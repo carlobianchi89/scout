@@ -95,3 +95,6 @@ _build
 *.rar
 *.tar
 *.zip
+ecm_prep_NoWarningsVersion.py
+ecm_prep_ORIGINAL.py
+ecm_prep_WithWarnings.py
