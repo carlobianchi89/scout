@@ -17,7 +17,7 @@ from argparse import ArgumentParser
 from ast import literal_eval
 from datetime import datetime
 import math
-
+import pandas as pd
 
 class MyEncoder(json.JSONEncoder):
     """Convert numpy arrays to list for JSON serializing."""
@@ -4344,12 +4344,6 @@ class Measure(object):
                     for x in ["energy", "cost", "carbon"]:
                         tsv_scale_fracs[x]["baseline"] = 1
 
-
-
-
-
-
-
                 for adopt_scheme in self.handyvars.adopt_schemes:
                     # Update total, competed, and efficient stock, energy,
                     # carbon and baseline/measure cost info. based on adoption
@@ -6479,15 +6473,15 @@ class Measure(object):
                     # If there is any value greater than 1, set it to 1
                     if (df['diff'] > 1).any():
                         warnings.warn('\nWARNING: Some declared diffusion'
-                                      'fractions are greater than 1.'
-                                      'Their value has been changed to 1.',
+                                      ' fractions are greater than 1.'
+                                      ' Their value has been changed to 1.',
                                       stacklevel=2)
                         df.loc[df['diff'] > 1, 'diff'] = 1
                     # if there is any value smaller than 0, set it to 0
                     if (df['diff'] < 0).any():
                         warnings.warn('\nWARNING: Some declared diffusion'
-                                      'fractions are smaller than 0.'
-                                      'Their value has been changed to 0.',
+                                      ' fractions are smaller than 0.'
+                                      ' Their value has been changed to 0.',
                                       stacklevel=2)
                         df.loc[df['diff'] < 0, 'diff'] = 0
                     # The data are interpolated to fill up values for each year
@@ -6499,12 +6493,12 @@ class Measure(object):
                     # used for all the first years and the last declared
                     # value is used for all the last years.
                     if df['diff'].isnull().values.any():
-                        warnings.warn('\nWARNING: Not enough data were'
-                                      'provided for first and last years of'
-                                      'the considered simulation period.\n'
-                                      'The simulation will continue assuming '
-                                      'plausible diffusion fraction values.',
-                                      stacklevel=2)
+                        warnings.simplefilter('\nWARNING: Not enough data were'
+                                      ' provided for first and last years of'
+                                      ' the considered simulation period.\n'
+                                      'The simulation will continue assuming'
+                                      ' plausible diffusion fraction values.',
+                                      ignore)
                         df = df.interpolate(method='linear').bfill()
                     # The time span for the diffusion fraction
                     # is limited to the simulation period
