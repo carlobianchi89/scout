@@ -6450,14 +6450,6 @@ class Measure(object):
         try:
             self.diffusion
         except (NameError, AttributeError):
-            # warnings.warn('\nWARNING: Diffusion parameters are not '
-            #               'present in the measure\n'
-            #               '==> diffusion parameters set to 1 '
-            #               'for every year.', stacklevel=2)
-            warnings.warn('WARNING: Diffusion parameters are not '
-                'present in the measure: '
-                'diffusion parameters set to 1 '
-                'for every year.', stacklevel=2)
             # If not present, we set it to 1
             for year in self.handyvars.aeo_years:
                 years_diff_fraction_dictionary[str(year)] = 1
