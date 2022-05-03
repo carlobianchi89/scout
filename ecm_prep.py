@@ -19,6 +19,7 @@ from datetime import datetime
 import math
 import pandas as pd
 
+
 class MyEncoder(json.JSONEncoder):
     """Convert numpy arrays to list for JSON serializing."""
 
@@ -2377,9 +2378,6 @@ class Measure(object):
 
         # Loop through discovered key chains to find needed performance/cost
         # and stock/energy information for measure
-
-        
-        # print(mskeys)
         warn_list = []
         for ind, mskeys in enumerate(ms_iterable):
             # Set building sector for the current microsegment
@@ -4372,7 +4370,8 @@ class Measure(object):
                             site_source_conv_meas, intensity_carb_base,
                             intensity_carb_meas, energy_total_scnd,
                             tsv_scale_fracs, tsv_shapes, opts,
-                            contrib_mseg_key, contrib_meas_pkg, hp_rate, warn_list)
+                            contrib_mseg_key, contrib_meas_pkg, hp_rate,
+                            warn_list)
 
                     # Remove double counted stock and stock cost for equipment
                     # measures that apply to more than one end use that
@@ -10363,7 +10362,6 @@ def prepare_measures(measures, convert_data, msegs, msegs_cpl, handyvars,
         opts.split_fuel, opts.floor_start, opts.exog_hp_rates,
         opts.grid_decarb, opts.adopt_scn_restrict, **m) for
         m in measures]
-
 
     # Fill in EnergyPlus-based performance information for Measure objects
     # with a 'From EnergyPlus' flag in their 'energy_efficiency' attribute
