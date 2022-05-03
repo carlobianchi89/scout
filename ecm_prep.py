@@ -2377,8 +2377,11 @@ class Measure(object):
 
         # Loop through discovered key chains to find needed performance/cost
         # and stock/energy information for measure
-        for ind, mskeys in enumerate(ms_iterable):
 
+        
+        # print(mskeys)
+        warn_list = []
+        for ind, mskeys in enumerate(ms_iterable):
             # Set building sector for the current microsegment
             if mskeys[2] in [
                     "single family home", "mobile home", "multi family home"]:
@@ -4343,7 +4346,6 @@ class Measure(object):
                     # Set baseline TSV scaling fractions to 1
                     for x in ["energy", "cost", "carbon"]:
                         tsv_scale_fracs[x]["baseline"] = 1
-
                 for adopt_scheme in self.handyvars.adopt_schemes:
                     # Update total, competed, and efficient stock, energy,
                     # carbon and baseline/measure cost info. based on adoption
@@ -4360,7 +4362,7 @@ class Measure(object):
                      add_stock_cost_compete_meas, add_energy_cost_compete_eff,
                      add_carb_cost_compete_eff, add_fs_energy_eff_remain,
                      add_fs_carb_eff_remain, add_fs_energy_cost_eff_remain,
-                     mkt_scale_frac_fin] = \
+                     mkt_scale_frac_fin, warn_list] = \
                         self.partition_microsegment(
                             adopt_scheme, diffuse_params, mskeys,
                             mkt_scale_frac, new_constr, add_stock,
@@ -4370,7 +4372,7 @@ class Measure(object):
                             site_source_conv_meas, intensity_carb_base,
                             intensity_carb_meas, energy_total_scnd,
                             tsv_scale_fracs, tsv_shapes, opts,
-                            contrib_mseg_key, contrib_meas_pkg, hp_rate)
+                            contrib_mseg_key, contrib_meas_pkg, hp_rate, warn_list)
 
                     # Remove double counted stock and stock cost for equipment
                     # measures that apply to more than one end use that
@@ -4842,6 +4844,9 @@ class Measure(object):
                         self.add_keyvals(self.markets[adopt_scheme][
                             "master_mseg"], add_dict)
 
+        if len(warn_list) > 0:
+            for warn in list(set(warn_list)):
+                print(warn)
         # Further normalize a measure's lifetime and stock information (where
         # the latter is based on square footage) to the number of microsegments
         # that contribute to the measure's overall master microsegment and
@@ -6269,7 +6274,7 @@ class Measure(object):
             cost_energy_meas, rel_perf, life_base, life_meas,
             site_source_conv_base, site_source_conv_meas, intensity_carb_base,
             intensity_carb_meas, energy_total_scnd, tsv_adj_init,
-            tsv_shapes, opts, contrib_mseg_key, contrib_meas_pkg, hp_rate):
+            tsv_shapes, opts, contrib_mseg_key, contrib_meas_pkg, hp_rate, warn_list):
         """Find total, competed, and efficient portions of a mkt. microsegment.
 
         Args:
@@ -6472,17 +6477,15 @@ class Measure(object):
                     df = df.resample('Y').mean()
                     # If there is any value greater than 1, set it to 1
                     if (df['diff'] > 1).any():
-                        warnings.warn('\nWARNING: Some declared diffusion'
-                                      ' fractions are greater than 1.'
-                                      ' Their value has been changed to 1.',
-                                      stacklevel=2)
+                        warn_list.append("\nWARNING: Some declared diffusion"
+                                         " fractions are greater than 1."
+                                         " Their value has been changed to 1.")
                         df.loc[df['diff'] > 1, 'diff'] = 1
                     # if there is any value smaller than 0, set it to 0
                     if (df['diff'] < 0).any():
-                        warnings.warn('\nWARNING: Some declared diffusion'
-                                      ' fractions are smaller than 0.'
-                                      ' Their value has been changed to 0.',
-                                      stacklevel=2)
+                        warn_list.append('\nWARNING: Some declared diffusion'
+                                         ' fractions are smaller than 0.'
+                                         ' Their value has been changed to 0.')
                         df.loc[df['diff'] < 0, 'diff'] = 0
                     # The data are interpolated to fill up values for each year
                     df = df.interpolate(method='linear',
@@ -6493,12 +6496,14 @@ class Measure(object):
                     # used for all the first years and the last declared
                     # value is used for all the last years.
                     if df['diff'].isnull().values.any():
-                        warnings.simplefilter('\nWARNING: Not enough data were'
-                                      ' provided for first and last years of'
-                                      ' the considered simulation period.\n'
-                                      'The simulation will continue assuming'
-                                      ' plausible diffusion fraction values.',
-                                      ignore)
+                        warn_list.append('\nWARNING: Not enough data were'
+                                         ' provided for first and last'
+                                         ' years of the considered'
+                                         ' simulation period.\n'
+                                         'The simulation will'
+                                         ' continue assuming'
+                                         ' plausible diffusion'
+                                         ' fraction values.')
                         df = df.interpolate(method='linear').bfill()
                     # The time span for the diffusion fraction
                     # is limited to the simulation period
@@ -6520,10 +6525,10 @@ class Measure(object):
                 except (NameError, AttributeError, ValueError):
                     # This takes care of fractions defined
                     # as strings not convertible to floats
-                    warnings.warn('\nWARNING: Diffusion parameters are not '
-                                  'properly defined in the measure\n==>'
-                                  'diffusion parameters set to 1 for'
-                                  ' every year.', stacklevel=2)
+                    warn_list.append('\nWARNING: Diffusion parameters are not '
+                                     'properly defined in the measure\n==>'
+                                     'diffusion parameters set to 1 for'
+                                     ' every year.')
                     for year in self.handyvars.aeo_years:
                         years_diff_fraction_dictionary[str(year)] = 1
             # 4) check if diffusion parameters are defined as
@@ -6535,10 +6540,10 @@ class Measure(object):
                     p = float(self.diffusion['bass_model_p'])
                     q = float(self.diffusion['bass_model_q'])
                 except ValueError:
-                    warnings.warn('\nWARNING: Diffusion parameters are not '
-                                  'properly defined in the measure\n==>'
-                                  'diffusion parameters set to 1 for'
-                                  ' every year.', stacklevel=2)
+                    warn_list.append('\nWARNING: Diffusion parameters are not '
+                                     'properly defined in the measure\n==>'
+                                     'diffusion parameters set to 1 for'
+                                     ' every year.')
                     # If not present, we set it to 1
                     for year in self.handyvars.aeo_years:
                         years_diff_fraction_dictionary[str(year)] = 1
@@ -6555,10 +6560,10 @@ class Measure(object):
                         years_diff_fraction_dictionary[str(
                             self.handyvars.aeo_years[i])] = value
             else:
-                warnings.warn('\nWARNING: Diffusion parameters are not '
-                              'properly defined in the measure\n==>'
-                              'diffusion parameters set to 1 for'
-                              ' every year.', stacklevel=2)
+                warn_list.append('\nWARNING: Diffusion parameters are not '
+                                 'properly defined in the measure\n==>'
+                                 'diffusion parameters set to 1 for'
+                                 ' every year.')
                 # 5) If not present, we set it to 1
                 for year in self.handyvars.aeo_years:
                     years_diff_fraction_dictionary[str(year)] = 1
@@ -7406,7 +7411,7 @@ class Measure(object):
                 carb_compete_cost, stock_compete_cost_eff,
                 energy_compete_cost_eff, carb_compete_cost_eff,
                 fs_energy_eff_remain, fs_carb_eff_remain,
-                fs_energy_cost_eff_remain, mkt_scale_frac_fin]
+                fs_energy_cost_eff_remain, mkt_scale_frac_fin, warn_list]
 
     def check_mkt_inputs(self):
         """Check for valid applicable baseline market inputs for a measure.
@@ -10359,6 +10364,7 @@ def prepare_measures(measures, convert_data, msegs, msegs_cpl, handyvars,
         opts.grid_decarb, opts.adopt_scn_restrict, **m) for
         m in measures]
 
+
     # Fill in EnergyPlus-based performance information for Measure objects
     # with a 'From EnergyPlus' flag in their 'energy_efficiency' attribute
 
@@ -10386,13 +10392,11 @@ def prepare_measures(measures, convert_data, msegs, msegs_cpl, handyvars,
         raise ValueError(
             'One or more ECMs require EnergyPlus data for ECM performance; '
             'EnergyPlus-based ECM performance data are currently unsupported.')
-
     # Finalize 'markets' attribute for all Measure objects
     [m.fill_mkts(
         msegs, msegs_cpl, convert_data, tsv_data, opts, contrib_meas_pkg,
         tsv_data_nonfs)
      for m in meas_update_objs]
-
     return meas_update_objs
 
 
@@ -11166,7 +11170,6 @@ def main(base_dir):
     # If one or more measure definition is new or has been edited, proceed
     # further with 'ecm_prep.py' routine; otherwise end the routine
     if len(meas_toprep_indiv) > 0 or len(meas_toprep_package) > 0:
-
         # Import baseline microsegments
         if regions == 'State':  # Extract compressed state stock/energy data
             bjszip = path.join(base_dir, *handyfiles.msegs_in)
@@ -11345,6 +11348,7 @@ def main(base_dir):
 
         # Add all prepared high-level measure information to existing
         # high-level data and to list of active measures for analysis
+
         for m in meas_prepped_summary:
             # Measure has been prepared from existing case (replace
             # high-level data for measure)
