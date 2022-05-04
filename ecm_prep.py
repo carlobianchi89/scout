@@ -2379,6 +2379,7 @@ class Measure(object):
         # Loop through discovered key chains to find needed performance/cost
         # and stock/energy information for measure
         warn_list = []
+        print('')
         for ind, mskeys in enumerate(ms_iterable):
             # Set building sector for the current microsegment
             if mskeys[2] in [
@@ -6476,13 +6477,13 @@ class Measure(object):
                     df = df.resample('Y').mean()
                     # If there is any value greater than 1, set it to 1
                     if (df['diff'] > 1).any():
-                        warn_list.append("\nWARNING: Some declared diffusion"
+                        warn_list.append("WARNING: Some declared diffusion"
                                          " fractions are greater than 1."
                                          " Their value has been changed to 1.")
                         df.loc[df['diff'] > 1, 'diff'] = 1
                     # if there is any value smaller than 0, set it to 0
                     if (df['diff'] < 0).any():
-                        warn_list.append('\nWARNING: Some declared diffusion'
+                        warn_list.append('WARNING: Some declared diffusion'
                                          ' fractions are smaller than 0.'
                                          ' Their value has been changed to 0.')
                         df.loc[df['diff'] < 0, 'diff'] = 0
@@ -6495,11 +6496,11 @@ class Measure(object):
                     # used for all the first years and the last declared
                     # value is used for all the last years.
                     if df['diff'].isnull().values.any():
-                        warn_list.append('\nWARNING: Not enough data were'
+                        warn_list.append('WARNING: Not enough data were'
                                          ' provided for first and last'
                                          ' years of the considered'
                                          ' simulation period.\n'
-                                         'The simulation will'
+                                         '\tThe simulation will'
                                          ' continue assuming'
                                          ' plausible diffusion'
                                          ' fraction values.')
@@ -6524,7 +6525,7 @@ class Measure(object):
                 except (NameError, AttributeError, ValueError):
                     # This takes care of fractions defined
                     # as strings not convertible to floats
-                    warn_list.append('\nWARNING: Diffusion parameters are not '
+                    warn_list.append('WARNING: Diffusion parameters are not '
                                      'properly defined in the measure\n==>'
                                      'diffusion parameters set to 1 for'
                                      ' every year.')
@@ -6539,7 +6540,7 @@ class Measure(object):
                     p = float(self.diffusion['bass_model_p'])
                     q = float(self.diffusion['bass_model_q'])
                 except ValueError:
-                    warn_list.append('\nWARNING: Diffusion parameters are not '
+                    warn_list.append('WARNING: Diffusion parameters are not '
                                      'properly defined in the measure\n==>'
                                      'diffusion parameters set to 1 for'
                                      ' every year.')
@@ -6559,7 +6560,7 @@ class Measure(object):
                         years_diff_fraction_dictionary[str(
                             self.handyvars.aeo_years[i])] = value
             else:
-                warn_list.append('\nWARNING: Diffusion parameters are not '
+                warn_list.append('WARNING: Diffusion parameters are not '
                                  'properly defined in the measure\n==>'
                                  'diffusion parameters set to 1 for'
                                  ' every year.')
