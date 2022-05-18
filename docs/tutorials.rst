@@ -1081,7 +1081,7 @@ Technology diffusion
 
 .. _ecm-download-diffusion:
 
-:download:`Example <examples/ENERGY STAR Gas Boiler v. 3.0.json>` -- Gas Boiler ECM (:ref:`Details <ecm-example-diffusion>`)
+:download:`Example <examples/Best Commercial Electric HPWH.json>` -- Commercial Heat Pump Water Heater ECM (:ref:`Details <ecm-example-diffusion>`)
 
 Technology diffusion models describe how a given technology spreads into the market. Between its market entry and exit year, a technology can have a changing adoption rate to reflect changes in market conditions or consumer awareness. This adoption rate can be modeled in one of two ways.
 
@@ -1108,7 +1108,7 @@ If no diffusion parameter is provided, or if it is provided in a format differen
 
 .. _ecm-example-diffusion:
 
-An ENERGY STAR Gas Boiler ECM is :ref:`available for download <ecm-download-diffusion>` to illustrate the use of the technology diffusion parameters.
+A commercial heat pump water heater ECM is :ref:`available for download <ecm-download-diffusion>` to illustrate the use of the technology diffusion parameters.
 
 
 .. _editing-ecms:
